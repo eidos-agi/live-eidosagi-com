@@ -346,9 +346,9 @@ export default function HowItWorksPage() {
           How Local AI Works
         </h1>
         <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-workshop-text/90">
-          Three pictures. One for the math (sparse MoE), one for the money
-          (where a dollar goes), one for the reasons that aren&apos;t the
-          money. All three are why this site exists.
+          Four sections. One for the math (sparse MoE), one for the money
+          (where a dollar goes), one for the packets (zero leave the box),
+          one for the reasons that aren&apos;t the money. All four are why this site exists.
         </p>
       </header>
 
@@ -398,10 +398,48 @@ export default function HowItWorksPage() {
         </p>
       </section>
 
-      {/* Section 3 — three reasons */}
+      {/* Section 3 — offline proof */}
+      <section className="mb-14">
+        <h2 className="font-heading text-2xl font-semibold">
+          3. It keeps working with the internet off
+        </h2>
+        <p className="mt-2 max-w-3xl text-[14.5px] leading-relaxed text-workshop-text/90">
+          The weights are a file on disk. Once pulled, the model doesn&apos;t
+          need to phone home to reply. No telemetry you can&apos;t see. No
+          upstream dependency that can break or be revoked. Same agent
+          loop, same quality, plane-mode compatible.
+        </p>
+        <div className="mt-5 overflow-hidden rounded border border-workshop-command/40 bg-workshop-surface/40 p-4">
+          <pre className="overflow-x-auto font-mono text-[12px] leading-relaxed text-workshop-muted">
+            <code>
+{`# block outbound traffic on the H100, keep SSH only
+$ sudo iptables -A OUTPUT -p tcp ! --sport 22 -j REJECT
+$ sudo iptables -A OUTPUT -p udp --dport ! 22   -j REJECT
+
+# run a race prompt against qwen3.6:35b-a3b — no internet
+$ curl -sS http://localhost:11434/api/generate \\
+    -d '{"model":"qwen3.6:35b-a3b","prompt":"count to 30","stream":false}'
+{"model":"qwen3.6:35b-a3b","response":"1\\n2\\n3\\n...","eval_count":80,
+ "eval_duration":741228000}   # ~108 tok/s, zero packets out`}
+            </code>
+          </pre>
+          <p className="mt-3 font-mono text-[11px] uppercase tracking-wider text-workshop-command">
+            ↑ tokens flow · vendor traffic does not
+          </p>
+        </div>
+        <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-workshop-muted">
+          This matters for regulated industries (healthcare, defense, finance)
+          where prompts must stay on-premise. It also matters for individuals
+          who notice that &quot;our model&quot; can become &quot;not our model&quot; the day a
+          vendor updates their TOS. Your copy of the weights is the same copy
+          tomorrow.
+        </p>
+      </section>
+
+      {/* Section 4 — three reasons */}
       <section className="mb-10">
         <h2 className="font-heading text-2xl font-semibold">
-          3. Three reasons, only one is cost
+          4. Three reasons, only one is cost
         </h2>
         <p className="mt-2 max-w-3xl text-[14.5px] leading-relaxed text-workshop-text/90">
           Cost is the easy story. The other two are why this mattered to us
