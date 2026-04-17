@@ -75,6 +75,9 @@ function actorDot(actor: string): string {
       return "bg-workshop-command";
     case "benchmark":
       return "bg-workshop-danger";
+    case "local-llm":
+    case "qwen-coder":
+      return "bg-workshop-command";
     default:
       return "bg-workshop-muted";
   }

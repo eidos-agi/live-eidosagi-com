@@ -4,6 +4,7 @@ import "./globals.css";
 import ActivitySidebar from "@/components/ActivitySidebar";
 import ChatSidebar from "@/components/ChatSidebar";
 import LinksFooter from "@/components/LinksFooter";
+import SavingsStrip from "@/components/SavingsStrip";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://live.eidosagi.com";
@@ -134,6 +135,7 @@ export default function RootLayout({
             </span>
           </nav>
         </header>
+        <SavingsStrip />
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
         <LinksFooter />
         <ActivitySidebar />
