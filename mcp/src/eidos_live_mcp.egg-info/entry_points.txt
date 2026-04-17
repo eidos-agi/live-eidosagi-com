@@ -1,2 +1,0 @@
-[console_scripts]
-eidos-live-mcp = eidos_live.server:run
