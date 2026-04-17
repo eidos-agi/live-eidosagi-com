@@ -113,15 +113,25 @@ export async function POST(req: Request): Promise<NextResponse> {
           if (!summary) return badRequest("event.summary required");
 
           // Quality gate — kill narrator-drift before it reaches the
-          // public feed. The local narrator was producing:
+          // public feed. The legacy llama3 narrator (session=a6000-narrator
+          // or similar) was producing:
           //   - LinkedIn-cadence prose ("surpasses", "achieves X billion")
           //   - Literal markdown detritus ("**SSE Frame...**")
           //   - Arithmetic hallucinations ("8 billion tokens in 195s")
           //   - Near-duplicate headlines on consecutive races
-          // Until the H100 harness is live, actor='eidos-local' posts are
-          // silenced — the savings counter still counts them (they're in
-          // by_actor) but they don't spam the feed.
-          if (actor === "eidos-local" && evKind !== "milestone") {
+          //
+          // Now that the Qwen 3.6 harness is live and authoring purposefully
+          // (session=qwen-harness-* or similar), its action events should
+          // reach the feed. We scope the suppression to the legacy narrator
+          // sessions only — everything else flows through, still counted in
+          // by_actor so the savings math is unaffected.
+          const looksLikeLegacyNarrator =
+            /^(a6000-narrator|narrator|commentator)(\b|[-_:])/i.test(sessionId);
+          if (
+            actor === "eidos-local" &&
+            evKind !== "milestone" &&
+            looksLikeLegacyNarrator
+          ) {
             return NextResponse.json({
               ok: true,
               id: 0,
