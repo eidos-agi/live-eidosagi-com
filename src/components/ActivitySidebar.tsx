@@ -292,11 +292,11 @@ export default function ActivitySidebar() {
                   className="group flex items-start gap-2.5 px-3 py-2 transition-colors hover:bg-workshop-primary/5"
                 >
                   <span
-                    className={`mt-[2px] inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border ${tone.border} ${tone.bg} ${tone.text} font-mono text-[13px] leading-none`}
+                    className={`mt-[2px] inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border ${tone.border} ${tone.bg} ${tone.text}`}
                     aria-hidden
                     title={`${actorLabel(ev.actor)} · ${ev.kind}`}
                   >
-                    {iconGlyph(ev.icon, ev.kind)}
+                    <ActivityIcon name={ev.icon} kind={ev.kind} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
