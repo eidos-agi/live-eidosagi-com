@@ -46,3 +46,8 @@ next-env.d.ts
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+
+# python build artifacts (from the bundled MCP server)
+__pycache__/
+*.pyc
+*.pyo
