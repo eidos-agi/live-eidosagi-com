@@ -15,7 +15,7 @@ Env:
   INGEST_URL           default https://live.eidosagi.com
   INGEST_TOKEN         required
   RACER_TICK_SECONDS   default 90
-  RACER_MODELS         default 'llama3.1:8b,qwen2.5:14b'
+  RACER_MODELS         default 'qwen3.6:35b-a3b,qwen3.6:7b,llama3.3:70b,gemma3:27b,deepseek-v3,qwen2.5:72b'
   RACER_NUM_PREDICT    default 120
 """
 
@@ -37,11 +37,26 @@ MODELS = [
     m.strip()
     for m in os.environ.get(
         "RACER_MODELS",
-        # Rotation — small to large. Only GPUs that have the model race that tick.
-        # Trimmed to tags actually pulled on at least one GPU (2026-04-17):
-        # dropped qwen2.5:32b, qwen3:30b, llama3.3:70b (never pulled).
-        # Added qwen3.6:35b-a3b — the newest release (2026-04-16), sparse MoE.
-        "llama3.2:1b,qwen2.5:1.5b,llama3.1:8b,qwen2.5:14b,qwen3.6:35b-a3b,qwen2.5:72b",
+        # 2026-04-17 rotation — newest-first.
+        # The vision's "local AI is already here, already current" claim
+        # doesn't hold if we're racing weights from mid-2024. Per the
+        # feedback_newer_model_prior rule: same-family newer version +
+        # published benchmarks agree → just upgrade. No measurement task
+        # required for same-family bumps.
+        #
+        # Dropped (mid-2024, superseded): llama3.2:1b, qwen2.5:1.5b, llama3.1:8b.
+        # Kept for dense-vs-MoE comparison story: qwen2.5:72b.
+        # Added (need pull on at least one GPU to start racing): qwen3.6:7b,
+        # gemma3:27b, deepseek-v3. has_model() skips any tag that isn't
+        # pulled on a given GPU, so un-pulled tags are no-ops not errors.
+        ",".join([
+            "qwen3.6:35b-a3b",   # Apr 2026, sparse MoE, 23 GB — harness default
+            "qwen3.6:7b",        # dense companion — needs pull
+            "llama3.3:70b",      # late 2024, already on A6000
+            "gemma3:27b",        # Google current — needs pull
+            "deepseek-v3",       # needs pull
+            "qwen2.5:72b",       # kept as dense baseline vs qwen3.6 MoE
+        ]),
     ).split(",")
     if m.strip()
 ]
