@@ -300,6 +300,7 @@ export default function ChatSidebar() {
       ref={listRef}
       onScroll={onScroll}
       className="flex-1 overflow-y-auto py-2"
+      style={{ overscrollBehavior: "contain" }}
     >
       {messages.length === 0 ? (
         <div className="px-4 py-10 font-mono text-[11px] leading-relaxed text-workshop-muted">

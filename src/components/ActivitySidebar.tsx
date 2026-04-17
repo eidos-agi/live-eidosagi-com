@@ -151,7 +151,10 @@ export default function ActivitySidebar() {
       </div>
 
       {/* Events — tight list, no card chrome */}
-      <div className="flex-1 overflow-y-auto">
+      <div
+        className="flex-1 overflow-y-auto"
+        style={{ overscrollBehavior: "contain" }}
+      >
         {events.length === 0 ? (
           <div className="px-4 py-10 font-mono text-[11px] leading-relaxed text-workshop-muted">
             <p className="mb-2 text-workshop-text">
