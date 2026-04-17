@@ -57,8 +57,34 @@ function textEmphasis(share: number): string {
   return "text-workshop-text";
 }
 
-export default function SavingsStrip() {
-  const [data, setData] = useState<SavingsPayload | null>(null);
+interface Props {
+  /** Server-rendered seed to avoid the 'waiting for first event' flash. */
+  initialSeed?: {
+    local_share: number;
+    total_events: number;
+    local_event_count: number;
+    hosted_event_count: number;
+    usd_saved_estimate: number;
+    hosted_cost_incurred_usd: number;
+  };
+}
+
+export default function SavingsStrip({ initialSeed }: Props = {}) {
+  const seeded: SavingsPayload | null = initialSeed
+    ? {
+        window_hours: 24,
+        total_events: initialSeed.total_events,
+        by_actor: {},
+        local_event_count: initialSeed.local_event_count,
+        hosted_event_count: initialSeed.hosted_event_count,
+        local_share: initialSeed.local_share,
+        usd_saved_estimate: initialSeed.usd_saved_estimate,
+        hosted_cost_incurred_usd: initialSeed.hosted_cost_incurred_usd,
+        claude_event_cost_usd: 0.004,
+        updated_at: new Date().toISOString(),
+      }
+    : null;
+  const [data, setData] = useState<SavingsPayload | null>(seeded);
   const [pulse, setPulse] = useState(false);
   const lastSigRef = useRef<string>("");
 
