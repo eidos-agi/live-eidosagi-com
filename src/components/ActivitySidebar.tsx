@@ -19,7 +19,7 @@ interface ActivityEvent {
   relatedRun: string | null;
 }
 
-const REFRESH_MS = 3000;
+const FALLBACK_REFRESH_MS = 8000; // used only if SSE can't connect
 const LIMIT = 80;
 
 function relativeTime(iso: string): string {
@@ -95,12 +95,16 @@ function actorLabel(actor: string): string {
 export default function ActivitySidebar() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [live, setLive] = useState<boolean>(false);
 
   const qs = useMemo(() => `limit=${LIMIT}`, []);
 
   useEffect(() => {
     let cancelled = false;
-    async function tick() {
+    let fallbackId: ReturnType<typeof setInterval> | null = null;
+    let es: EventSource | null = null;
+
+    async function poll() {
       try {
         const res = await fetch(`/api/events?${qs}`, { cache: "no-store" });
         if (!res.ok) throw new Error(`${res.status}`);
@@ -113,13 +117,65 @@ export default function ActivitySidebar() {
         if (!cancelled) setError(e instanceof Error ? e.message : "fetch_err");
       }
     }
-    void tick();
-    const id = setInterval(tick, REFRESH_MS);
+
+    function startFallback() {
+      if (fallbackId) return;
+      void poll();
+      fallbackId = setInterval(poll, FALLBACK_REFRESH_MS);
+    }
+
+    function stopFallback() {
+      if (fallbackId) {
+        clearInterval(fallbackId);
+        fallbackId = null;
+      }
+    }
+
+    try {
+      es = new EventSource(`/api/events/stream?${qs}`);
+      es.onopen = () => {
+        if (cancelled) return;
+        stopFallback();
+        setLive(true);
+        setError(null);
+      };
+      es.onmessage = (ev) => {
+        if (cancelled) return;
+        try {
+          const data = JSON.parse(ev.data);
+          if (data.type === "initial" && Array.isArray(data.events)) {
+            setEvents(data.events as ActivityEvent[]);
+          } else if (data.type === "event" && data.event) {
+            const incoming = data.event as ActivityEvent;
+            setEvents((prev) => {
+              // Dedupe by id; prepend (list is reverse-chron newest-first).
+              if (prev.some((e) => e.id === incoming.id)) return prev;
+              return [incoming, ...prev].slice(0, LIMIT);
+            });
+          }
+        } catch {
+          // ignore malformed
+        }
+      };
+      es.onerror = () => {
+        if (cancelled) return;
+        setLive(false);
+        startFallback();
+      };
+    } catch {
+      startFallback();
+    }
+
     return () => {
       cancelled = true;
-      clearInterval(id);
+      stopFallback();
+      if (es) es.close();
     };
   }, [qs]);
+
+  // Expose live vs polling state to the header via a data attribute (used
+  // for the 'live' / 'stale' label).
+  const connectionLabel = error ? "stale" : live ? "live" : "polling";
 
   return (
     <aside
@@ -137,7 +193,7 @@ export default function ActivitySidebar() {
             activity
           </span>
           <span className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
-            {error ? "stale" : "live"}
+            {connectionLabel}
           </span>
         </div>
         <a
