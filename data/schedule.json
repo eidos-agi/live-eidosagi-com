@@ -1,0 +1,28 @@
+{
+  "schedule": [
+    {
+      "id": "2026-04-20-llama31-vs-mistral",
+      "startsAt": "2026-04-20T17:00:00Z",
+      "model": "llama3.1:8b",
+      "gpus": ["A6000", "A100", "H100"],
+      "label": "Nightly smoke — llama3.1 vs mistral:7b",
+      "prompt": "coding-heavy prompts, 10 test cases"
+    },
+    {
+      "id": "2026-04-22-qwen2-long-context",
+      "startsAt": "2026-04-22T17:00:00Z",
+      "model": "qwen2.5:7b",
+      "gpus": ["A6000", "A100", "H100"],
+      "label": "Long-context stress test",
+      "prompt": "32k-token summarization workload"
+    },
+    {
+      "id": "2026-04-24-phi3-mini-battery",
+      "startsAt": "2026-04-24T17:00:00Z",
+      "model": "phi3:mini",
+      "gpus": ["A6000", "A100", "H100"],
+      "label": "Small-model sweep — phi3:mini battery",
+      "prompt": "mixed-use battery, 25 test cases"
+    }
+  ]
+}
