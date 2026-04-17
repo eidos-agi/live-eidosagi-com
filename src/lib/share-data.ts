@@ -1,7 +1,11 @@
 // Shared helper: derive podium + headline numbers for a completed (or live) run.
 // Used by both the share-card (OG image) endpoint and the per-run narrative.
 
-import { readEvents, readRunMeta, readScores } from "./store";
+import {
+  getRun,
+  listProgressForRun,
+  listScoresForRun,
+} from "./db";
 import type { EvalScore, ProgressEvent, Run } from "./types";
 
 export interface PodiumEntry {
@@ -69,12 +73,70 @@ export function buildPodium(run: Run, events: ProgressEvent[]): PodiumEntry[] {
 }
 
 export async function loadShareData(runId: string): Promise<ShareData | null> {
-  const run = await readRunMeta(runId);
-  if (!run) return null;
-  const [events, scores] = await Promise.all([
-    readEvents(runId),
-    readScores(runId),
-  ]);
+  let dbRun;
+  try {
+    dbRun = getRun(runId);
+  } catch {
+    return null;
+  }
+  if (!dbRun) return null;
+
+  // Map db.Run -> types.Run (the shape buildPodium + downstream expect)
+  const run: Run = {
+    id: dbRun.id,
+    startedAt: dbRun.startedAt,
+    endedAt: dbRun.endedAt,
+    gpus: dbRun.gpus.map((g) => ({
+      name: g.name,
+      type: (g.type as string | undefined) ?? "",
+      vramGB: (g.vramGB as number | undefined) ?? 0,
+      costPerHour: (g.costPerHour as number | undefined) ?? 0,
+    })),
+    models: dbRun.models,
+    label: dbRun.promptLabel ?? undefined,
+  };
+
+  let dbProgress: ReturnType<typeof listProgressForRun> = [];
+  let dbScores: ReturnType<typeof listScoresForRun> = [];
+  try {
+    dbProgress = listProgressForRun(runId);
+    dbScores = listScoresForRun(runId);
+  } catch {
+    /* keep empty */
+  }
+
+  const events: ProgressEvent[] = dbProgress.map((p) => ({
+    runId: p.runId,
+    ts: p.ts,
+    gpuId: p.gpuId,
+    model: p.model,
+    useCase: p.useCase ?? "",
+    tokenPerSec: p.tokPerSec ?? 0,
+    latencyMs: p.latencyMs ?? 0,
+    vramUsedMB: p.vramUsedMb ?? 0,
+    evalProgressIdx: p.evalIdx ?? 0,
+    evalTotal: p.evalTotal ?? 0,
+  }));
+  const scores: EvalScore[] = dbScores.map((s) => {
+    const dims = (s.dimensions as Record<string, number> | null) ?? {};
+    return {
+      runId: s.runId,
+      model: s.model,
+      useCase: s.useCase,
+      testCaseId: s.testCaseId ?? "",
+      composite: s.composite ?? 0,
+      dimensions: {
+        correctness: Number(dims.correctness ?? 0),
+        completeness: Number(dims.completeness ?? 0),
+        formatQuality: Number(
+          dims.formatQuality ?? dims.format_quality ?? 0,
+        ),
+        conciseness: Number(dims.conciseness ?? 0),
+      },
+      tokPerSec: s.tokPerSec ?? 0,
+    };
+  });
+
   const podium = buildPodium(run, events);
   const headline = podium[0];
   return {
