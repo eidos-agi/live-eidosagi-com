@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from "react";
 
+interface Props {
+  /** Server-rendered initial line to avoid the 'Silicon cooling' flash. */
+  initial?: string;
+}
+
+const FALLBACK = "Silicon cooling. Next ignition soon.";
+
 /**
  * Narrow horizontal band above the footer. One-line race narration
  * refreshed every 60s via /api/commentary.
  */
-export default function Commentator() {
-  const [line, setLine] = useState<string>("Silicon cooling. Next ignition soon.");
+export default function Commentator({ initial }: Props = {}) {
+  const [line, setLine] = useState<string>(initial || FALLBACK);
 
   useEffect(() => {
     let cancelled = false;
