@@ -26,11 +26,34 @@ function resolveDbPath(): string {
 }
 
 function runMigrations(db: DB): void {
-  const initSql = fsSync.readFileSync(
-    path.join(process.cwd(), "src", "lib", "migrations", "001_init.sql"),
-    "utf8",
+  // Tiny tracker table so each file runs exactly once.
+  db.exec(
+    `CREATE TABLE IF NOT EXISTS schema_migrations (
+       name TEXT PRIMARY KEY,
+       applied_at INTEGER NOT NULL
+     )`,
   );
-  db.exec(initSql);
+  const applied = new Set(
+    (db.prepare("SELECT name FROM schema_migrations").all() as Array<{
+      name: string;
+    }>).map((r) => r.name),
+  );
+
+  const dir = path.join(process.cwd(), "src", "lib", "migrations");
+  const files = fsSync
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort(); // 001_... runs before 002_... runs before 003_...
+
+  const record = db.prepare(
+    "INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)",
+  );
+  for (const file of files) {
+    if (applied.has(file)) continue;
+    const sql = fsSync.readFileSync(path.join(dir, file), "utf8");
+    db.exec(sql);
+    record.run(file, Date.now());
+  }
 }
 
 export function getDb(): DB {
@@ -61,7 +84,11 @@ export function getDb(): DB {
 // ---------------------------------------------------------------------------
 
 export type Actor =
-  | "claude"
+  | "eidos"
+  | "eidos-local"
+  | "claude" // historical pre-rename
+  | "local-llm"
+  | "qwen-coder"
   | "human"
   | "system"
   | "github"
