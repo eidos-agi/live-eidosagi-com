@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
 import ActivitySidebar from "@/components/ActivitySidebar";
+import AutoRefresh from "@/components/AutoRefresh";
 import ChatSidebar from "@/components/ChatSidebar";
 import LaunchBanner from "@/components/LaunchBanner";
 import LinksFooter from "@/components/LinksFooter";
@@ -142,6 +143,7 @@ export default function RootLayout({
         <LinksFooter />
         <ActivitySidebar />
         <ChatSidebar />
+        <AutoRefresh />
       </body>
     </html>
   );
