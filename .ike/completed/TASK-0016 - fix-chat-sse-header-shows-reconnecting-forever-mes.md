@@ -1,9 +1,10 @@
 ---
 id: TASK-0016
 title: Fix chat SSE — header shows 'reconnecting' forever, messages don't stream
-status: To Do
+status: Done
 created: '2026-04-17'
 priority: High
+updated: '2026-04-17'
 ---
 /api/chat/stream exists and emits 'initial' + 'message' events, but the ChatSidebar dot/label stays stuck on 'reconnecting' in production. Likely causes:
 1. `EventSource` is hitting a 502/empty body because Railway's proxy is closing the stream before the first event. The keepalive is at 15s — maybe bump to 10s AND send an initial comment immediately on connect.

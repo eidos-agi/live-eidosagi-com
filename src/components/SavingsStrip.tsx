@@ -29,12 +29,16 @@ interface SavingsPayload {
   hosted_event_count: number;
   local_share: number;
   usd_saved_estimate: number;
+  hosted_cost_incurred_usd?: number;
   claude_event_cost_usd: number;
   updated_at: string;
 }
 
 function formatUsd(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return "$0.00";
+  if (!Number.isFinite(n) || n <= 0) return "$0.000";
+  // Under a dime, show 3 decimals so the counter is visibly moving from the
+  // very first local event ($0.004 saved, not rounded to $0.00).
+  if (n < 0.10) return `$${n.toFixed(3)}`;
   if (n < 1000) return `$${n.toFixed(2)}`;
   return `$${n.toLocaleString(undefined, {
     minimumFractionDigits: 2,

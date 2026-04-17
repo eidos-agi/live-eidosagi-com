@@ -99,10 +99,15 @@ def ollama_generate(prompt: str, num_predict: int = 60) -> str | None:
         log(f"ollama error: {e}")
         return None
     text = (data.get("response") or "").strip()
-    # ollama sometimes returns quoted strings or bullet prefixes
+    # Strip quotes, bullet prefixes, and markdown emphasis — llama3 loves to
+    # wrap headlines in **bold** or *italics*. Kill that at the source.
     text = text.strip('"\u201c\u201d ')
-    text = re.sub(r"^\s*[\-*\u2022]\s*", "", text)
     text = text.splitlines()[0] if text else ""
+    text = re.sub(r"^\s*[\-*\u2022>#]+\s*", "", text)          # leading bullets/hashes
+    text = re.sub(r"\*{1,3}([^*]+?)\*{1,3}", r"\1", text)       # **bold** / *italic*
+    text = re.sub(r"_{1,3}([^_]+?)_{1,3}", r"\1", text)         # __bold__
+    text = re.sub(r"`([^`]+)`", r"\1", text)                    # `code`
+    text = text.strip('"\u201c\u201d ').rstrip(".:")
     return text[:180].strip() or None
 
 

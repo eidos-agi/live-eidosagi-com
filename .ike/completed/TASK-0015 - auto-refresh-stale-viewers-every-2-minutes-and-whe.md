@@ -1,9 +1,10 @@
 ---
 id: TASK-0015
 title: Auto-refresh stale viewers every 2 minutes (and when a new run ignites)
-status: To Do
+status: Done
 created: '2026-04-17'
 priority: High
+updated: '2026-04-17'
 ---
 SSE is now live for /api/events, so the ActivitySidebar feed stays fresh on open tabs. But the RaceBoard, SavingsStrip, NOW/IDLE status strip, and any run-context state still require a hard refresh to pull new run metadata / new lanes / new model labels / updated savings.
 

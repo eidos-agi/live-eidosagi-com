@@ -1,10 +1,11 @@
 ---
 id: TASK-0009
 title: Build Ollama event-summarizer daemon on A6000 (self-cheapening Phase 4)
-status: To Do
+status: Done
 created: '2026-04-17'
 priority: High
 milestone: Phase 4 — Self-Cheapening Loop
+updated: '2026-04-17'
 ---
 Python daemon on the A6000 Thunder instance. Subscribes to a Redis/SQLite queue (or pulls from a new `raw_event_hints` table) of "things to narrate" — commit pushes, subagent completions, benchmark milestones. For each item: prompt llama3.1:8b for a <= 150-char headline, POST to /api/ingest with actor='local-llm', kind matching the source. Include latency_ms + tokens + a running $-saved counter in `details`.
 

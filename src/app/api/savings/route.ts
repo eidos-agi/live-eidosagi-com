@@ -57,9 +57,14 @@ interface SavingsPayload {
   local_event_count: number;
   hosted_event_count: number;
   local_share: number;
-  usd_saved_estimate: number;
+  usd_saved_estimate: number;        // full precision (4 decimals)
+  hosted_cost_incurred_usd: number;  // dollars spent on hosted authorship
   claude_event_cost_usd: number;
   updated_at: string;
+}
+
+function round4(n: number): number {
+  return Math.round(n * 10_000) / 10_000;
 }
 
 function emptyPayload(claudeCost: number): SavingsPayload {
@@ -71,6 +76,7 @@ function emptyPayload(claudeCost: number): SavingsPayload {
     hosted_event_count: 0,
     local_share: 0,
     usd_saved_estimate: 0,
+    hosted_cost_incurred_usd: 0,
     claude_event_cost_usd: claudeCost,
     updated_at: new Date().toISOString(),
   };
@@ -138,7 +144,8 @@ export async function GET(): Promise<NextResponse> {
     local_event_count: local,
     hosted_event_count: hosted,
     local_share: localShare,
-    usd_saved_estimate: Math.round(usdSaved * 100) / 100,
+    usd_saved_estimate: round4(usdSaved),
+    hosted_cost_incurred_usd: round4(hosted * claudeCost),
     claude_event_cost_usd: claudeCost,
     updated_at: new Date().toISOString(),
   };
