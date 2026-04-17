@@ -4,6 +4,7 @@ import "./globals.css";
 import ActivitySidebar from "@/components/ActivitySidebar";
 import AutoRefresh from "@/components/AutoRefresh";
 import ChatSidebar from "@/components/ChatSidebar";
+import Commentator from "@/components/Commentator";
 import LaunchBanner from "@/components/LaunchBanner";
 import LinksFooter from "@/components/LinksFooter";
 import SavingsStripServer from "@/components/SavingsStripServer";
@@ -152,6 +153,7 @@ export default function RootLayout({
         <LaunchBanner />
         <SavingsStripServer />
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+        <Commentator />
         <LinksFooter />
         <ActivitySidebar />
         <ChatSidebar />
