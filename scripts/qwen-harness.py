@@ -44,6 +44,25 @@ SESSION = "qwen-harness-proof"
 MAX_TURNS = 8
 MAX_TOKENS = int(os.environ.get("QWEN_MAX_TOKENS", "1500"))
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+WRITE_ALLOW_PREFIXES = (
+    "src/app/research/",
+    "src/app/methodology/",
+    "src/app/up-next/",
+    "scripts/",
+    ".ike/tasks/",
+)
+WRITE_MAX_BYTES = 10_000
+COMMAND_ALLOWLIST = {
+    "pnpm build",
+    "pnpm test",
+    "pnpm lint",
+    "pnpm typecheck",
+    "git diff",
+    "git status",
+    "git diff --stat",
+}
+
 
 def ingest(kind: str, payload: dict) -> None:
     data = json.dumps({"kind": kind, "payload": payload}).encode()
@@ -90,6 +109,35 @@ TOOLS = [
                 "content": {"type": "string", "description": "The full paragraph, up to 1200 chars. Will be saved verbatim."},
             },
             "required": ["slot", "content"],
+        },
+    }},
+    {"type": "function", "function": {
+        "name": "write_file",
+        "description": (
+            "Write content to a repo-relative path. Overwrites if it exists. "
+            "Path must start with one of: src/app/research/, src/app/methodology/, "
+            "src/app/up-next/, scripts/, .ike/tasks/. Max 10 KB. Returns confirmation."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Repo-relative path, e.g. 'src/app/methodology/page.tsx'."},
+                "content": {"type": "string", "description": "Full file content. Up to 10,000 bytes."},
+            },
+            "required": ["path", "content"],
+        },
+    }},
+    {"type": "function", "function": {
+        "name": "run_command",
+        "description": (
+            "Run one of a small set of allowlisted repo commands: "
+            "pnpm build, pnpm test, pnpm lint, pnpm typecheck, git diff, git status, git diff --stat. "
+            "Returns exit_code, and the last ~800 chars each of stdout/stderr."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"cmd": {"type": "string", "description": "Exact allowlisted command."}},
+            "required": ["cmd"],
         },
     }},
     {"type": "function", "function": {
@@ -158,6 +206,54 @@ def exec_tool(name: str, args_json: str) -> str:
             details={"slot": slot, "path": str(path), "chars": len(content)},
         )
         return f"saved {len(content)} chars to {path}"
+    if name == "write_file":
+        rel = str(args.get("path", "")).lstrip("/")
+        content = args.get("content", "")
+        if not isinstance(content, str):
+            return "error: content must be a string"
+        if not any(rel.startswith(p) for p in WRITE_ALLOW_PREFIXES):
+            return f"error: path not in allowlist ({', '.join(WRITE_ALLOW_PREFIXES)})"
+        if ".." in rel.split("/"):
+            return "error: path traversal not allowed"
+        size = len(content.encode("utf-8"))
+        if size > WRITE_MAX_BYTES:
+            return f"error: {size} bytes exceeds {WRITE_MAX_BYTES} cap"
+        target = (REPO_ROOT / rel).resolve()
+        if REPO_ROOT.resolve() not in target.parents and target != REPO_ROOT.resolve():
+            return "error: resolved path escapes repo"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
+        log_event(
+            f"write_file · {rel} · {size} bytes",
+            kind="action",
+            details={"path": rel, "bytes": size},
+        )
+        return f"wrote {size} bytes to {rel}"
+    if name == "run_command":
+        cmd = str(args.get("cmd", "")).strip()
+        if cmd not in COMMAND_ALLOWLIST:
+            return f"error: cmd not in allowlist ({sorted(COMMAND_ALLOWLIST)})"
+        t0 = time.time()
+        try:
+            proc = subprocess.run(
+                cmd, shell=True, cwd=str(REPO_ROOT),
+                capture_output=True, timeout=180,
+            )
+        except subprocess.TimeoutExpired:
+            log_event(f"run_command · {cmd} · TIMEOUT", kind="warn")
+            return "error: timeout after 180s"
+        dt = round(time.time() - t0, 1)
+        stdout = proc.stdout.decode(errors="replace")[-800:]
+        stderr = proc.stderr.decode(errors="replace")[-800:]
+        log_event(
+            f"run_command · {cmd} · rc={proc.returncode} · {dt}s",
+            kind="action",
+            details={"cmd": cmd, "rc": proc.returncode, "duration_s": dt},
+        )
+        return json.dumps({
+            "cmd": cmd, "exit_code": proc.returncode, "duration_s": dt,
+            "stdout_tail": stdout, "stderr_tail": stderr,
+        })
     if name == "fetch_url":
         url = args.get("url", "")
         if not url.startswith("https://live.eidosagi.com/"):
@@ -189,8 +285,10 @@ def run(task: str) -> None:
 
     messages: list[dict] = [
         {"role": "system", "content": (
-            "You are Eidos, running on local silicon (Qwen 2.5 72B on an H100) for the first time. "
-            "You have 4 tools. Use them to accomplish the task, then call `done`. "
+            "You are Eidos, running on local silicon (Qwen 3.6 35B-A3B on an H100). "
+            "You have these tools: log_event, emit_paragraph, write_file, run_command, "
+            "fetch_url, get_time, done. Use them to accomplish the task, then call `done`. "
+            "Prefer write_file for code/text changes and run_command to verify with build/tests. "
             "Keep tool args minimal and JSON-valid. One tool call per turn."
         )},
         {"role": "user", "content": task},
