@@ -97,25 +97,25 @@ function actorTone(actor: string): {
       return {
         text: "text-workshop-primary",
         border: "border-workshop-primary/40",
-        bg: "bg-workshop-primary/10",
+        bg: "bg-transparent",
       };
     case "human":
       return {
         text: "text-workshop-secondary",
         border: "border-workshop-secondary/40",
-        bg: "bg-workshop-secondary/10",
+        bg: "bg-transparent",
       };
     case "github":
       return {
         text: "text-workshop-command",
         border: "border-workshop-command/50",
-        bg: "bg-workshop-command/10",
+        bg: "bg-transparent",
       };
     case "benchmark":
       return {
         text: "text-workshop-danger",
         border: "border-workshop-danger/40",
-        bg: "bg-workshop-danger/10",
+        bg: "bg-transparent",
       };
     case "local-llm":
     case "eidos-local":
@@ -123,13 +123,13 @@ function actorTone(actor: string): {
       return {
         text: "text-workshop-command",
         border: "border-workshop-command/40",
-        bg: "bg-workshop-command/10",
+        bg: "bg-transparent",
       };
     default:
       return {
         text: "text-workshop-muted",
         border: "border-workshop-muted/30",
-        bg: "bg-workshop-muted/5",
+        bg: "bg-transparent",
       };
   }
 }
