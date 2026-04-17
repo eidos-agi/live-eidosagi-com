@@ -1,12 +1,10 @@
 "use client";
 
-// Public chat — collapsed-by-default tab at right edge. Click to expand into
-// a right-anchored drawer. Sits on top of content; does NOT take layout width.
-//
-//  - Tab shows live connection + message count.
-//  - Drawer: 360px wide, 85vh tall, max 720px tall.
-//  - Handle lives in localStorage; shown inline in the composer, not as a
-//    separate picker step.
+// Public chat.
+//  - Desktop (lg+): always-open sidebar on the right, 320px wide, full height.
+//    Layout reserves matching right padding in app/layout.tsx.
+//  - Mobile: collapsed tab bottom-right, opens a slide-up drawer.
+//  - Live via SSE; handle + roll + char count inline in the composer.
 //  - 200-char limit per message. Rate limit enforced server-side (1/5s/IP).
 //  - Soft-deleted messages render as [removed].
 //  - User-posted links get rel="nofollow noopener", no image embedding.
@@ -30,8 +28,7 @@ interface ChatMessage {
 }
 
 const HANDLE_KEY = "eidos.chat.handle";
-const OPEN_KEY = "eidos.chat.open";
-const SEEN_KEY = "eidos.chat.lastSeenId";
+const MOBILE_OPEN_KEY = "eidos.chat.mobileOpen";
 const BODY_MAX = 200;
 
 // ---- handle generator -------------------------------------------------------
@@ -97,62 +94,37 @@ export default function ChatSidebar() {
   const [draft, setDraft] = useState<string>("");
   const [sending, setSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState<boolean>(false);
+  const [mobileOpen, setMobileOpen] = useState<boolean>(false);
   const [connected, setConnected] = useState<boolean>(false);
-  const [lastSeenId, setLastSeenId] = useState<number>(0);
 
   const listRef = useRef<HTMLDivElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const stickyRef = useRef<boolean>(true);
 
-  // Load handle + open state + last seen id from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem(HANDLE_KEY);
       setHandle(stored && stored.trim() ? stored : generateHandle());
-      setOpen(localStorage.getItem(OPEN_KEY) === "1");
-      const seen = parseInt(localStorage.getItem(SEEN_KEY) ?? "0", 10);
-      if (!Number.isNaN(seen)) setLastSeenId(seen);
+      setMobileOpen(localStorage.getItem(MOBILE_OPEN_KEY) === "1");
     } catch {
       setHandle(generateHandle());
     }
   }, []);
 
-  // Persist open state
   useEffect(() => {
     try {
-      localStorage.setItem(OPEN_KEY, open ? "1" : "0");
+      localStorage.setItem(MOBILE_OPEN_KEY, mobileOpen ? "1" : "0");
     } catch {
       // ignore
     }
-    if (open && textareaRef.current) {
-      // Focus composer after opening
-      setTimeout(() => textareaRef.current?.focus(), 120);
-    }
-  }, [open]);
+  }, [mobileOpen]);
 
-  // Mark seen while open
-  useEffect(() => {
-    if (!open || messages.length === 0) return;
-    const latest = messages[messages.length - 1]?.id ?? 0;
-    if (latest > lastSeenId) {
-      setLastSeenId(latest);
-      try {
-        localStorage.setItem(SEEN_KEY, String(latest));
-      } catch {
-        // ignore
-      }
-    }
-  }, [open, messages, lastSeenId]);
-
-  // Keyboard: ESC closes
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open) setOpen(false);
+      if (e.key === "Escape" && mobileOpen) setMobileOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [mobileOpen]);
 
   // SSE subscription
   useEffect(() => {
@@ -187,7 +159,7 @@ export default function ChatSidebar() {
     const el = listRef.current;
     if (!el) return;
     if (stickyRef.current) el.scrollTop = el.scrollHeight;
-  }, [messages, open]);
+  }, [messages, mobileOpen]);
 
   const onScroll = useCallback(() => {
     const el = listRef.current;
@@ -245,23 +217,19 @@ export default function ChatSidebar() {
   );
 
   const remaining = BODY_MAX - draft.length;
-
-  const unreadCount = useMemo(
-    () => messages.filter((m) => m.id > lastSeenId && !m.deleted).length,
-    [messages, lastSeenId],
-  );
-
-  const latestPreview = useMemo(() => {
-    const last = [...messages].reverse().find((m) => !m.deleted);
-    if (!last) return null;
-    const body = last.body.length > 40 ? last.body.slice(0, 40) + "…" : last.body;
-    return `${last.handle}: ${body}`;
+  const viewerCount = useMemo(() => {
+    // Distinct handles in the last hour of visible messages — cheap proxy for
+    // "who's in the room." Purely cosmetic.
+    const since = Date.now() - 60 * 60 * 1000;
+    const handles = new Set<string>();
+    for (const m of messages) if (m.ts >= since && !m.deleted) handles.add(m.handle);
+    return handles.size;
   }, [messages]);
 
   const messageList = useMemo(
     () =>
       messages.map((m) => (
-        <div key={m.id} className="px-3 py-1.5">
+        <div key={m.id} className="px-4 py-2">
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-[11px] text-workshop-primary">
               {m.handle}
@@ -270,7 +238,7 @@ export default function ChatSidebar() {
               {formatTime(m.ts)}
             </span>
           </div>
-          <div className="mt-0.5 break-words text-sm text-workshop-text">
+          <div className="mt-1 break-words text-[13px] leading-relaxed text-workshop-text">
             {m.deleted ? (
               <em className="text-workshop-muted">[removed]</em>
             ) : (
@@ -282,17 +250,140 @@ export default function ChatSidebar() {
     [messages],
   );
 
-  // ---- render ---------------------------------------------------------------
+  const headerBar = (
+    <div className="flex items-center justify-between border-b border-workshop-primary/15 bg-gradient-to-b from-[var(--color-surface)] to-[var(--color-surface)]/80 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <span
+          className={[
+            "inline-block h-2 w-2 rounded-full",
+            connected
+              ? "bg-workshop-command shadow-[0_0_8px_rgba(184,196,160,0.6)]"
+              : "bg-workshop-muted",
+          ].join(" ")}
+          aria-hidden
+        />
+        <span className="font-heading text-sm font-semibold text-workshop-text">
+          chat
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+          {connected ? "live" : "reconnecting"}
+        </span>
+      </div>
+      <div className="flex items-center gap-3 font-mono text-[10px] text-workshop-muted">
+        {viewerCount > 0 && (
+          <span className="tnum">
+            <span className="text-workshop-text">{viewerCount}</span>{" "}
+            {viewerCount === 1 ? "voice" : "voices"}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          className="rounded-full border border-transparent p-1 text-workshop-muted transition hover:border-workshop-muted/30 hover:text-workshop-text lg:hidden"
+          aria-label="Close chat"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+            <path
+              d="M1 1l12 12M13 1L1 13"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+
+  const messagesPane = (
+    <div
+      ref={listRef}
+      onScroll={onScroll}
+      className="flex-1 overflow-y-auto py-2"
+    >
+      {messages.length === 0 ? (
+        <div className="px-4 py-10 font-mono text-[11px] leading-relaxed text-workshop-muted">
+          <p className="mb-2 text-workshop-text">the fire is lit.</p>
+          <p>
+            watch the GPUs race. say something. pick any handle — nobody
+            here knows you yet.
+          </p>
+        </div>
+      ) : (
+        messageList
+      )}
+    </div>
+  );
+
+  const composer = (
+    <form
+      onSubmit={handleSubmit}
+      className="border-t border-workshop-primary/15 bg-[var(--color-bg)]/40 px-3 py-3"
+    >
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <div className="mb-1 flex items-center gap-2 font-mono text-[10px] text-workshop-muted">
+            <span className="text-workshop-primary">{handle}</span>
+            <button
+              type="button"
+              onClick={() => setHandle(generateHandle())}
+              className="text-[10px] uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
+              aria-label="Roll new handle"
+            >
+              roll
+            </button>
+            <span className="ml-auto tnum">{remaining}</span>
+          </div>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.slice(0, BODY_MAX))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit();
+              }
+            }}
+            placeholder="say something…"
+            rows={2}
+            maxLength={BODY_MAX}
+            className="w-full resize-none rounded-lg border border-workshop-muted/20 bg-[var(--color-bg)] px-3 py-2 text-sm text-workshop-text outline-none placeholder:text-workshop-muted focus:border-workshop-primary/50"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={sending || !draft.trim() || !handle.trim()}
+          className="h-[54px] rounded-lg border border-workshop-primary/50 bg-workshop-primary/10 px-3 font-mono text-xs uppercase tracking-wider text-workshop-primary transition hover:bg-workshop-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {sending ? "…" : "send"}
+        </button>
+      </div>
+      {error && (
+        <div className="mt-2 font-mono text-[10px] text-workshop-danger">
+          {error}
+        </div>
+      )}
+    </form>
+  );
 
   return (
     <>
-      {/* Collapsed tab (visible when closed) */}
-      {!open && (
+      {/* Desktop: always-open right-edge sidebar */}
+      <aside
+        className="fixed right-0 top-0 bottom-0 z-30 hidden w-[320px] flex-col border-l border-workshop-primary/20 bg-[var(--color-surface)]/95 backdrop-blur lg:flex"
+        aria-label="Public chat"
+      >
+        {headerBar}
+        {messagesPane}
+        {composer}
+      </aside>
+
+      {/* Mobile: collapsed tab */}
+      {!mobileOpen && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => setMobileOpen(true)}
           aria-label="Open chat"
-          className="fixed bottom-5 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] items-center gap-2 rounded-full border border-workshop-primary/40 bg-[var(--color-surface)]/95 px-4 py-2 text-left shadow-[0_2px_20px_rgba(196,147,90,0.08)] backdrop-blur transition hover:border-workshop-primary/70 hover:shadow-[0_2px_28px_rgba(196,147,90,0.18)]"
+          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-workshop-primary/40 bg-[var(--color-surface)]/95 px-4 py-2 shadow-[0_2px_20px_rgba(196,147,90,0.1)] backdrop-blur lg:hidden"
         >
           <span
             className={[
@@ -301,150 +392,30 @@ export default function ChatSidebar() {
             ].join(" ")}
             aria-hidden
           />
-          <span className="font-mono text-[11px] uppercase tracking-wider text-workshop-muted">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-workshop-primary">
             chat
           </span>
-          {latestPreview ? (
-            <span className="hidden truncate font-mono text-[11px] text-workshop-text sm:inline-block sm:max-w-[240px]">
-              {latestPreview}
-            </span>
-          ) : null}
-          {unreadCount > 0 && (
-            <span className="rounded-full bg-workshop-primary px-1.5 py-0.5 font-mono text-[10px] font-semibold text-workshop-bg tnum">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
         </button>
       )}
 
-      {/* Backdrop (mobile + small viewports) */}
-      {open && (
-        <div
-          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden"
-          onClick={() => setOpen(false)}
-          aria-hidden
-        />
-      )}
-
-      {/* Drawer */}
-      {open && (
-        <aside
-          role="dialog"
-          aria-label="Public chat"
-          className={[
-            "fixed right-4 z-40 flex flex-col overflow-hidden",
-            "rounded-2xl border border-workshop-primary/30",
-            "bg-[var(--color-surface)]/97 backdrop-blur",
-            "shadow-[0_10px_40px_rgba(0,0,0,0.5)]",
-            // Desktop: bottom-right floating panel
-            "bottom-5 h-[min(85vh,720px)] w-[min(calc(100vw-2rem),380px)]",
-          ].join(" ")}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-workshop-primary/15 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span
-                className={[
-                  "inline-block h-1.5 w-1.5 rounded-full",
-                  connected ? "bg-workshop-command" : "bg-workshop-muted",
-                ].join(" ")}
-                aria-hidden
-              />
-              <span className="font-heading text-sm font-semibold text-workshop-text">
-                chat
-              </span>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
-                {connected ? "live" : "reconnecting"}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-full border border-transparent p-1 text-workshop-muted transition hover:border-workshop-muted/30 hover:text-workshop-text"
-              aria-label="Close chat"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                aria-hidden
-              >
-                <path
-                  d="M1 1l12 12M13 1L1 13"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Messages */}
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <>
           <div
-            ref={listRef}
-            onScroll={onScroll}
-            className="flex-1 overflow-y-auto py-2"
+            className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden
+          />
+          <aside
+            role="dialog"
+            aria-label="Public chat"
+            className="fixed bottom-0 left-0 right-0 z-40 flex h-[80vh] flex-col rounded-t-2xl border-t border-workshop-primary/30 bg-[var(--color-surface)]/97 backdrop-blur lg:hidden"
           >
-            {messages.length === 0 ? (
-              <div className="px-4 py-8 font-mono text-xs leading-relaxed text-workshop-muted">
-                say something while you watch the fire.
-              </div>
-            ) : (
-              messageList
-            )}
-          </div>
-
-          {/* Composer */}
-          <form
-            onSubmit={handleSubmit}
-            className="border-t border-workshop-primary/15 bg-[var(--color-bg)]/40 px-3 py-3"
-          >
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <div className="mb-1 flex items-center gap-2 font-mono text-[10px] text-workshop-muted">
-                  <span className="text-workshop-primary">{handle}</span>
-                  <button
-                    type="button"
-                    onClick={() => setHandle(generateHandle())}
-                    className="text-[10px] uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
-                    aria-label="Roll new handle"
-                  >
-                    roll
-                  </button>
-                  <span className="ml-auto tnum">{remaining}</span>
-                </div>
-                <textarea
-                  ref={textareaRef}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value.slice(0, BODY_MAX))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit();
-                    }
-                  }}
-                  placeholder="say something…"
-                  rows={2}
-                  maxLength={BODY_MAX}
-                  className="w-full resize-none rounded-lg border border-workshop-muted/20 bg-[var(--color-bg)] px-3 py-2 text-sm text-workshop-text outline-none placeholder:text-workshop-muted focus:border-workshop-primary/50"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={sending || !draft.trim() || !handle.trim()}
-                className="h-[54px] rounded-lg border border-workshop-primary/50 bg-workshop-primary/10 px-3 font-mono text-xs uppercase tracking-wider text-workshop-primary transition hover:bg-workshop-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {sending ? "…" : "send"}
-              </button>
-            </div>
-            {error && (
-              <div className="mt-2 font-mono text-[10px] text-workshop-danger">
-                {error}
-              </div>
-            )}
-          </form>
-        </aside>
+            {headerBar}
+            {messagesPane}
+            {composer}
+          </aside>
+        </>
       )}
     </>
   );
