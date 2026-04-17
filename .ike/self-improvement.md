@@ -36,3 +36,14 @@ Fix (trivial): docstring → 3.6, boot summary uses `{MODEL}` variable now so it
 
 **(d) Tool to default to:** `ssh … "curl -sf -m 5 http://localhost:11434/api/version"` is the alive-check one-liner. Worth a `scripts/gpu-alive.sh` helper so audit loops stop re-hand-coding it.
 
+---
+
+## 2026-04-17T22:30Z — simpler way
+
+**Uncomfortable question:** Is there a simpler way I'm missing because I'm pattern-matching on how I did it last time?
+
+**Answer, honestly:** yes — and I noticed it 10 min ago (22:20Z entry above) and then **did it again**. Every BENCHMARK CHECK I run is the same ~20-line parallel bash block: 3 × SSH+curl probes, an `/api/savings` fetch with inline python JSON parse, an `/api/events?limit=15` fetch with inline python datetime math, and a host probe. I've shipped that block at least **6 times** this session. Each one burns tool-call context; the audit is 95% glue code that should live in `scripts/audit.sh` and be callable as a one-liner.
+
+**Fix (trivial, ≤ 3 min):** ship `scripts/audit.sh` that does the parallel probe + structured JSON output. Next BENCHMARK CHECK becomes `bash scripts/audit.sh` — one line, one tool call, less Claude context per audit.
+
+Doing it now on this same `self-improvement-seed` branch per the 22:10Z batching rule.
