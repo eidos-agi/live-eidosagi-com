@@ -12,14 +12,14 @@ interface Props {
 
 // Stable color palette per GPU lane type.
 const LANE_COLOR: Record<string, string> = {
-  A6000: "#4ade80",
-  A100: "#60a5fa",
-  H100: "#f472b6",
+  A6000: "#b8c4a0",  // command green
+  A100: "#c4935a",   // amber brass (leader accent)
+  H100: "#7a8c72",   // sage
 };
 
 function colorFor(gpuId: string, lanes: Run["gpus"]): string {
   const gpu = lanes.find((g) => g.name === gpuId);
-  return (gpu && LANE_COLOR[gpu.type]) ?? "#94a3b8";
+  return (gpu && LANE_COLOR[gpu.type]) ?? "#8b8179";
 }
 
 /**
