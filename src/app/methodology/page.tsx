@@ -424,6 +424,238 @@ OLLAMA_FLASH_ATTENTION=1`}
           </li>
         </ul>
       </section>
+
+      <section id="benchmarks" className="space-y-6">
+        <h2 className="font-heading text-2xl font-bold text-workshop-primary">
+          Benchmarks — opinions and dead ends
+        </h2>
+
+        <p className="leading-relaxed text-workshop-text">
+          Most published LLM benchmarks measure whatever is easy to measure.
+          That&apos;s why the leaderboards don&apos;t change your mind. Here
+          are the arguments behind our harness — what we measure, what we
+          refuse to measure, and what we&apos;re still unsure of.
+        </p>
+
+        <h3 className="font-heading text-lg font-semibold text-workshop-text">
+          Opinions we hold
+        </h3>
+        <ul className="space-y-3 text-sm text-workshop-text">
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-primary">◆</span>
+            <span>
+              <strong className="text-workshop-text">
+                Tokens per second is not the benchmark.
+              </strong>{" "}
+              It&apos;s a denominator. The real benchmark is{" "}
+              <span className="tnum text-workshop-command">
+                dollars per million tokens at a usable quality floor
+              </span>
+              . A model that generates 300 tok/s of slop is worse than one
+              that generates 30 tok/s of correct prose.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-primary">◆</span>
+            <span>
+              <strong className="text-workshop-text">
+                Prototyping-tier cloud GPUs are a mirage.
+              </strong>{" "}
+              Virtualized GPU at a low hourly price hides the fact that
+              throughput collapses under contention. The same llama3.1:8b
+              ran at 126.6 tok/s on H100 production and 4.3 tok/s on A6000
+              prototyping in our runs. Dollars per token: inverted.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-primary">◆</span>
+            <span>
+              <strong className="text-workshop-text">
+                Quality rubrics must be adversarial.
+              </strong>{" "}
+              Asking a model to score itself is performance theater. Every
+              eval here uses an external judge with a rubric the model
+              can&apos;t see, and every dimension is scored independently.
+              If two dimensions correlate perfectly over a week, one of them
+              is leaking.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-primary">◆</span>
+            <span>
+              <strong className="text-workshop-text">
+                Latency matters, but throughput matters more.
+              </strong>{" "}
+              First-token latency sells demos; steady-state throughput pays
+              the bill. We publish both, and we sort the leaderboard on the
+              money metric by default.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-primary">◆</span>
+            <span>
+              <strong className="text-workshop-text">
+                KV-cache quantization is free money for most use cases.
+              </strong>{" "}
+              We run with{" "}
+              <code className="text-workshop-command">
+                OLLAMA_KV_CACHE_TYPE=q4_0
+              </code>
+              and have yet to find a workload where it hurts composite score
+              at a detectable level. We&apos;d love to be proven wrong — file
+              a counter-example.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-primary">◆</span>
+            <span>
+              <strong className="text-workshop-text">
+                Public benchmarks rot.
+              </strong>{" "}
+              Every number on this site decays in trustworthiness the moment
+              the underlying model release ships. We re-run the full suite
+              every week on the same hardware, and only the latest run drives
+              the dashboard. Historical runs are in <code>/runs</code>.
+            </span>
+          </li>
+        </ul>
+
+        <h3 className="mt-6 font-heading text-lg font-semibold text-workshop-text">
+          Dead ends we abandoned
+        </h3>
+        <ul className="space-y-3 text-sm text-workshop-text">
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-danger">—</span>
+            <span>
+              <strong>CPU-only inference benchmarks.</strong> Ran them on a
+              128-thread EPYC. At our model tiers, CPU is ~15× slower than
+              even a virtualized GPU. The measurement is correct and the
+              answer is boring. We stopped publishing.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-danger">—</span>
+            <span>
+              <strong>Single-prompt quality judgments.</strong> Asking &quot;
+              did the model answer this one prompt correctly?&quot; is a coin
+              toss. We moved to rubric-scored batches of at least 20 prompts
+              per use case before a score is published.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-danger">—</span>
+            <span>
+              <strong>Composite scores as a single number.</strong> We tried
+              it. Everyone asks &quot;which model is best?&quot; and a single
+              number gives them an answer they feel confident about — and is
+              wrong. The four dimensions (correctness, completeness, format,
+              conciseness) stay separate in every published row.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1 text-workshop-danger">—</span>
+            <span>
+              <strong>Speed-tests against vendor-cloud endpoints.</strong>{" "}
+              Latency tests against hosted APIs measure the datacenter, not
+              the model. We care about the chip.
+            </span>
+          </li>
+        </ul>
+
+        <h3 className="mt-6 font-heading text-lg font-semibold text-workshop-text">
+          Socratic prompts — help us invent better benchmarks
+        </h3>
+        <p className="text-sm leading-relaxed text-workshop-muted">
+          Open questions we&apos;d love contributions on. If you have a
+          sharper answer, open a PR against the repo or drop it in the chat
+          sidebar.
+        </p>
+        <ol className="space-y-3 list-decimal pl-5 text-sm text-workshop-text marker:text-workshop-primary">
+          <li>
+            What&apos;s the smallest prompt set that can reliably
+            discriminate between a 7B and a 14B model on <em>memory
+            extraction</em>? If 20 is enough, why are we running 200? If 200
+            is needed, how would we prove it without measuring?
+          </li>
+          <li>
+            How do we measure &quot;does this model know what it doesn&apos;t
+            know&quot;? Every current rubric scores the output — none score
+            the model&apos;s own confidence relative to ground truth.
+            Calibration is a first-class property, not a footnote.
+          </li>
+          <li>
+            Tokens-per-second is a straight line to a dollar. Quality-per-token
+            is not. What&apos;s the function? Log? Sigmoid? A step at some
+            parameter count? If we knew the shape, we&apos;d stop interpolating.
+          </li>
+          <li>
+            Context window is a capacity, not a benchmark. Models degrade
+            gracefully at different points. What&apos;s the sharpest test for
+            &quot;needle in a haystack at 100k tokens&quot; that isn&apos;t
+            gamed by positional priors?
+          </li>
+          <li>
+            We quantize KV cache to q4 and have seen no composite hit. Is
+            there a use case where q4 KV nukes accuracy? We suspect
+            long-horizon chained reasoning, but we haven&apos;t found a clean
+            minimal test.
+          </li>
+          <li>
+            If a local 14B model scores within 5% of a hosted frontier on
+            our rubrics, how much of the remaining 5% is actually rubric
+            noise versus real capability gap? A delta smaller than your noise
+            floor isn&apos;t a signal — it&apos;s a trap.
+          </li>
+          <li>
+            What&apos;s the correct benchmark for <em>agentic</em> work? Most
+            of what we actually want these models for is multi-step tool use,
+            not single-turn completion. The rubric-scored single-prompt eval
+            is the wrong test; we don&apos;t yet know the right one.
+          </li>
+          <li>
+            Are the {""}
+            <em>
+              cheapest per token
+            </em>{" "}
+            numbers stable across GPU utilization? We measure mostly-idle
+            GPUs. A production workload sharing a GPU with other tenants
+            changes every number on the leaderboard.
+          </li>
+          <li>
+            The H100 is 5× cheaper per token than an A100 here for the same
+            model. Is that because the H100 is 5× better, or because the
+            A100 instance we rented is throttled in ways we don&apos;t see?
+            Distinguishing hardware from cloud-plumbing is hard.
+          </li>
+          <li>
+            How do you benchmark a model that&apos;s still learning from your
+            queries? A lot of modern serving layers adapt. Our rubric scores
+            a moment in time; we don&apos;t yet capture drift.
+          </li>
+        </ol>
+
+        <p className="mt-6 text-sm leading-relaxed text-workshop-muted">
+          If any of these hook you, the repo is at{" "}
+          <Link
+            href="https://github.com/eidos-agi/live-eidosagi-com"
+            className="text-workshop-primary hover:underline"
+          >
+            eidos-agi/live-eidosagi-com
+          </Link>
+          . The harness is in the sibling{" "}
+          <code className="text-workshop-command">
+            eidos-server-llm-testing-01
+          </code>{" "}
+          project. Evidence-graded findings from ongoing work live in{" "}
+          <Link
+            href="/research/why-local-matters"
+            className="text-workshop-primary hover:underline"
+          >
+            /research/why-local-matters
+          </Link>
+          .
+        </p>
+      </section>
     </article>
   );
 }
