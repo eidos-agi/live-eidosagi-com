@@ -34,7 +34,9 @@ interface SavingsPayload {
 }
 
 function formatUsd(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return "$0.00";
+  if (!Number.isFinite(n) || n <= 0) return "$0.000";
+  // Under a dime: 3 decimals so the counter breathes from the first local event.
+  if (n < 0.10) return `$${n.toFixed(3)}`;
   if (n < 1000) return `$${n.toFixed(2)}`;
   return `$${n.toLocaleString(undefined, {
     minimumFractionDigits: 2,
