@@ -126,32 +126,90 @@ export default function ChatSidebar() {
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileOpen]);
 
-  // SSE subscription
+  // SSE subscription.
+  // onopen is unreliable behind some proxies (Railway edge included) — it
+  // may never fire even when messages are flowing. Treat ANY incoming data
+  // as proof-of-life; onerror only flips us back to 'reconnecting' if the
+  // browser explicitly marks the ES as CLOSED.
   useEffect(() => {
-    const es = new EventSource("/api/chat/stream");
-    es.onopen = () => setConnected(true);
-    es.onerror = () => setConnected(false);
-    es.onmessage = (ev) => {
+    let es: EventSource | null = null;
+    let pollId: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+
+    async function poll() {
       try {
-        const data = JSON.parse(ev.data);
-        if (data.type === "initial" && Array.isArray(data.messages)) {
-          const asc = [...(data.messages as ChatMessage[])].sort(
-            (a, b) => a.ts - b.ts,
-          );
-          setMessages(asc);
-        } else if (data.type === "message" && data.message) {
-          const m = data.message as ChatMessage;
-          setMessages((prev) => {
-            if (prev.some((x) => x.id === m.id)) return prev;
-            return [...prev, m];
-          });
-        }
+        const res = await fetch("/api/chat", { cache: "no-store" });
+        if (!res.ok) throw new Error(`${res.status}`);
+        const data = (await res.json()) as { messages: ChatMessage[] };
+        if (cancelled) return;
+        const asc = [...(data.messages ?? [])].sort((a, b) => a.ts - b.ts);
+        setMessages(asc);
       } catch {
-        // ignore malformed payloads
+        // ignore; will retry on next interval
       }
-    };
+    }
+
+    function startFallback() {
+      if (pollId || cancelled) return;
+      setConnected(false);
+      void poll();
+      pollId = setInterval(poll, 5000);
+    }
+    function stopFallback() {
+      if (pollId) {
+        clearInterval(pollId);
+        pollId = null;
+      }
+    }
+
+    try {
+      es = new EventSource("/api/chat/stream");
+      es.onopen = () => {
+        if (!cancelled) {
+          stopFallback();
+          setConnected(true);
+        }
+      };
+      es.onmessage = (ev) => {
+        if (cancelled) return;
+        // Any message = proof of life, regardless of onopen timing.
+        stopFallback();
+        setConnected(true);
+        try {
+          const data = JSON.parse(ev.data);
+          if (data.type === "initial" && Array.isArray(data.messages)) {
+            const asc = [...(data.messages as ChatMessage[])].sort(
+              (a, b) => a.ts - b.ts,
+            );
+            setMessages(asc);
+          } else if (data.type === "message" && data.message) {
+            const m = data.message as ChatMessage;
+            setMessages((prev) => {
+              if (prev.some((x) => x.id === m.id)) return prev;
+              return [...prev, m];
+            });
+          }
+        } catch {
+          // ignore malformed payloads
+        }
+      };
+      es.onerror = () => {
+        if (cancelled || !es) return;
+        // Only drop 'connected' if the browser fully closed the stream.
+        // readyState 0 = CONNECTING (auto-reconnect in progress) — keep hope.
+        // readyState 2 = CLOSED                                    — fall back.
+        if (es.readyState === 2) {
+          startFallback();
+        }
+      };
+    } catch {
+      startFallback();
+    }
+
     return () => {
-      es.close();
+      cancelled = true;
+      stopFallback();
+      if (es) es.close();
     };
   }, []);
 
