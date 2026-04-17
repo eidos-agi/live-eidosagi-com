@@ -38,3 +38,11 @@ next-env.d.ts
 # data (runtime ingestion output)
 /data/runs/*
 !/data/runs/.gitkeep
+
+# sqlite (local dev DB + WAL sidecars)
+/data/*.sqlite
+/data/*.sqlite-*
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
