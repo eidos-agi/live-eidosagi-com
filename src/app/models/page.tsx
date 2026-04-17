@@ -164,7 +164,12 @@ export default async function ModelsPage() {
                       className={`truncate font-mono text-[15px] font-semibold ${tone.accent}`}
                       title={model.name}
                     >
-                      {model.name}
+                      <Link
+                        href={`/models/${encodeURIComponent(model.name)}`}
+                        className="hover:underline"
+                      >
+                        {model.name}
+                      </Link>
                     </h2>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                       <span
