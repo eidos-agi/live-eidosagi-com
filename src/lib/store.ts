@@ -1,102 +1,169 @@
-// Filesystem-backed JSONL store for runs, progress events, and eval scores.
-// No DB on purpose — runs are append-only flat files under data/runs/<id>/.
+// SQLite-backed adapter matching the previous filesystem store's public API.
+//
+// Internally reads/writes to the same SQLite DB as `@/lib/db`. Return shapes
+// are intentionally preserved so existing UI components don't have to change.
+//
+// Named `store.ts` for import compatibility; new code should prefer `@/lib/db`
+// directly.
 
-import { promises as fs } from "node:fs";
-import fssync from "node:fs";
-import path from "node:path";
-import type {
-  EvalScore,
-  ProgressEvent,
-  Run,
-} from "./types";
+import {
+  getDb,
+  getRun,
+  listRuns as listRunsDb,
+  upsertRunStart,
+  insertProgress as insertProgressDb,
+  insertScore as insertScoreDb,
+  listProgressForRun,
+  listScoresForRun,
+  type Run as DbRun,
+  type Progress,
+  type Score,
+} from "./db";
+import type { EvalScore, ProgressEvent, Run } from "./types";
 
-const DATA_ROOT = path.join(process.cwd(), "data", "runs");
-
-function runDir(runId: string): string {
-  return path.join(DATA_ROOT, runId);
+function dbRunToLegacy(run: DbRun): Run {
+  return {
+    id: run.id,
+    startedAt: run.startedAt,
+    endedAt: run.endedAt,
+    gpus: run.gpus.map((g) => {
+      const loose = g as unknown as Record<string, unknown>;
+      const pickNum = (...keys: string[]): number => {
+        for (const k of keys) {
+          const v = loose[k];
+          if (typeof v === "number") return v;
+        }
+        return 0;
+      };
+      return {
+        name: String(g.name),
+        type: String(g.type ?? g.name),
+        vramGB: pickNum("vramGB", "vram_gb"),
+        costPerHour: pickNum("costPerHour", "cost_per_hour"),
+      };
+    }),
+    models: run.models,
+    label: run.promptLabel ?? undefined,
+  };
 }
 
-async function ensureDir(dir: string): Promise<void> {
-  await fs.mkdir(dir, { recursive: true });
+function progressToLegacy(p: Progress): ProgressEvent {
+  return {
+    runId: p.runId,
+    ts: p.ts,
+    gpuId: p.gpuId,
+    model: p.model,
+    useCase: p.useCase ?? "",
+    tokenPerSec: p.tokPerSec ?? 0,
+    latencyMs: p.latencyMs ?? 0,
+    vramUsedMB: p.vramUsedMb ?? 0,
+    evalProgressIdx: p.evalIdx ?? 0,
+    evalTotal: p.evalTotal ?? 0,
+  };
 }
 
-/** Read a run's metadata.json if present. Returns null if the run doesn't exist. */
+function scoreToLegacy(s: Score): EvalScore {
+  const d = s.dimensions ?? {};
+  const num = (k: string): number => {
+    const v = (d as Record<string, unknown>)[k];
+    return typeof v === "number" ? v : 0;
+  };
+  return {
+    runId: s.runId,
+    model: s.model,
+    useCase: s.useCase,
+    testCaseId: s.testCaseId ?? "",
+    composite: s.composite ?? 0,
+    dimensions: {
+      correctness: num("correctness"),
+      completeness: num("completeness"),
+      formatQuality: num("formatQuality") || num("format_quality"),
+      conciseness: num("conciseness"),
+    },
+    tokPerSec: s.tokPerSec ?? 0,
+  };
+}
+
 export async function readRunMeta(runId: string): Promise<Run | null> {
-  const file = path.join(runDir(runId), "run.json");
-  try {
-    const raw = await fs.readFile(file, "utf8");
-    return JSON.parse(raw) as Run;
-  } catch {
-    return null;
-  }
+  const run = getRun(runId);
+  return run ? dbRunToLegacy(run) : null;
 }
 
-/** Write/overwrite a run's metadata. */
 export async function writeRunMeta(run: Run): Promise<void> {
-  await ensureDir(runDir(run.id));
-  await fs.writeFile(
-    path.join(runDir(run.id), "run.json"),
-    JSON.stringify(run, null, 2),
-    "utf8",
-  );
-}
-
-/** List every run that has a run.json file. Returns newest first. */
-export async function listRuns(): Promise<Run[]> {
-  try {
-    const entries = await fs.readdir(DATA_ROOT, { withFileTypes: true });
-    const runs: Run[] = [];
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const meta = await readRunMeta(entry.name);
-      if (meta) runs.push(meta);
-    }
-    runs.sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
-    return runs;
-  } catch {
-    return [];
+  upsertRunStart({
+    runId: run.id,
+    gpus: run.gpus.map((g) => ({
+      name: g.name,
+      type: g.type,
+      vramGB: g.vramGB,
+      costPerHour: g.costPerHour,
+    })),
+    models: run.models,
+    promptLabel: run.label ?? null,
+    startedAt: run.startedAt,
+    status: run.endedAt ? "completed" : "running",
+  });
+  if (run.endedAt) {
+    const db = getDb();
+    db.prepare(`UPDATE runs SET ended_at = ?, status = ? WHERE id = ?`).run(
+      Date.parse(run.endedAt),
+      "completed",
+      run.id,
+    );
   }
 }
 
-async function appendJsonl(file: string, obj: unknown): Promise<void> {
-  await ensureDir(path.dirname(file));
-  await fs.appendFile(file, JSON.stringify(obj) + "\n", "utf8");
+export async function listRuns(): Promise<Run[]> {
+  return listRunsDb(500).map(dbRunToLegacy);
 }
 
 export async function appendProgress(ev: ProgressEvent): Promise<void> {
-  await appendJsonl(path.join(runDir(ev.runId), "events.jsonl"), ev);
+  insertProgressDb({
+    runId: ev.runId,
+    gpuId: ev.gpuId,
+    model: ev.model,
+    useCase: ev.useCase || null,
+    tokPerSec: ev.tokenPerSec,
+    latencyMs: ev.latencyMs,
+    vramUsedMb: ev.vramUsedMB,
+    evalIdx: ev.evalProgressIdx,
+    evalTotal: ev.evalTotal,
+    ts: ev.ts,
+  });
 }
 
 export async function appendScore(score: EvalScore): Promise<void> {
-  await appendJsonl(path.join(runDir(score.runId), "scores.jsonl"), score);
+  insertScoreDb({
+    runId: score.runId,
+    gpuId: "",
+    model: score.model,
+    useCase: score.useCase,
+    testCaseId: score.testCaseId || null,
+    composite: score.composite,
+    dimensions: score.dimensions as unknown as Record<string, unknown>,
+    tokPerSec: score.tokPerSec,
+  });
 }
 
-async function readJsonl<T>(file: string): Promise<T[]> {
-  try {
-    const raw = await fs.readFile(file, "utf8");
-    return raw
-      .split("\n")
-      .filter((line) => line.trim().length > 0)
-      .map((line) => JSON.parse(line) as T);
-  } catch {
-    return [];
-  }
+export async function readEvents(runId: string): Promise<ProgressEvent[]> {
+  return listProgressForRun(runId, 10000).map(progressToLegacy);
 }
 
-export function readEvents(runId: string): Promise<ProgressEvent[]> {
-  return readJsonl<ProgressEvent>(path.join(runDir(runId), "events.jsonl"));
+export async function readScores(runId: string): Promise<EvalScore[]> {
+  return listScoresForRun(runId).map(scoreToLegacy);
 }
 
-export function readScores(runId: string): Promise<EvalScore[]> {
-  return readJsonl<EvalScore>(path.join(runDir(runId), "scores.jsonl"));
-}
-
-/** Path to the events file for SSE tailing. Sync version for watcher setup. */
-export function eventsFilePath(runId: string): string {
-  return path.join(runDir(runId), "events.jsonl");
-}
-
-/** Existence check used by SSE route to avoid EACCES/ENOENT noise. */
+/** Existence check used by the SSE route. */
 export function runExistsSync(runId: string): boolean {
-  return fssync.existsSync(path.join(runDir(runId), "run.json"));
+  return getRun(runId) != null;
+}
+
+/**
+ * Kept for API compatibility with the previous filesystem store. Returns a
+ * pseudo "path" that encodes the run id. The SSE route no longer tails this
+ * file; it polls the `progress` table directly. Exported so legacy imports
+ * don't blow up during compilation.
+ */
+export function eventsFilePath(runId: string): string {
+  return `sqlite://progress?run_id=${encodeURIComponent(runId)}`;
 }
