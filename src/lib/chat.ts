@@ -1,17 +1,14 @@
 // Chat storage + pub/sub for the public chat sidebar.
 //
-// Storage strategy:
-//   - Primary: better-sqlite3 (shared with the SQLite branch).
-//   - Fallback: in-memory array (dev / when the SQLite branch hasn't merged yet).
+// Storage: shares the canonical SQLite DB from src/lib/db.ts
+// (same file on the Railway volume, same migration runner). The
+// chat_messages table is created by migration 002_chat.sql.
 //
-// The better-sqlite3 import is wrapped in a try/catch + dynamic require so
-// the Next.js build still passes on this branch before 001_init.sql /
-// better-sqlite3 land in main.
+// An in-memory fallback is still kept for dev when the DB is
+// unavailable (never hit in prod).
 
 import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
-import { createRequire } from "node:module";
+import { getDb as getCanonicalDb } from "./db";
 
 export interface ChatMessage {
   id: number;
@@ -35,17 +32,12 @@ interface ChatRow {
 // ----------------------------------------------------------------------------
 
 interface DbHolder {
-  __eidosChatDb?: unknown | null;
-  __eidosChatDbTried?: boolean;
   __eidosChatMem?: ChatRow[];
   __eidosChatSubs?: Set<(msg: ChatMessage) => void>;
 }
 
-type SqliteDb = Record<string, (...args: unknown[]) => unknown>;
+type SqliteDb = ReturnType<typeof getCanonicalDb>;
 
-function runSql(db: SqliteDb, sql: string): void {
-  (db["exec"] as (s: string) => void)(sql);
-}
 function prepareSql(
   db: SqliteDb,
   sql: string,
@@ -53,89 +45,22 @@ function prepareSql(
   run: (...args: unknown[]) => { lastInsertRowid: number | bigint };
   all: (...args: unknown[]) => unknown[];
 } {
-  return (db["prepare"] as (s: string) => {
+  return db.prepare(sql) as unknown as {
     run: (...args: unknown[]) => { lastInsertRowid: number | bigint };
     all: (...args: unknown[]) => unknown[];
-  })(sql);
-}
-function pragma(db: SqliteDb, sql: string): void {
-  (db["pragma"] as (s: string) => unknown)(sql);
-}
-
-function resolveDbPath(): string {
-  const explicit = process.env.DATABASE_PATH ?? process.env.SQLITE_PATH;
-  if (explicit) {
-    try {
-      fs.mkdirSync(path.dirname(explicit), { recursive: true });
-    } catch {
-      // ignore
-    }
-    return explicit;
-  }
-  const dataDir = path.join(process.cwd(), "data");
-  try {
-    fs.mkdirSync(dataDir, { recursive: true });
-  } catch {
-    // ignore
-  }
-  return path.join(dataDir, "eidos-live.sqlite");
+  };
 }
 
 function getDb(): SqliteDb | null {
-  const holder = globalThis as unknown as DbHolder;
-  if (holder.__eidosChatDb !== undefined) {
-    return (holder.__eidosChatDb as SqliteDb) ?? null;
-  }
-  holder.__eidosChatDbTried = true;
-
   try {
-    // createRequire + an opaque module name so the Next build succeeds
-    // on branches where better-sqlite3 hasn't been installed yet. Webpack
-    // emits an informational warning about the expression dependency —
-    // that's expected; the build still passes.
-    const req = createRequire(import.meta.url);
-    const modName = ["better", "sqlite3"].join("-");
-    const Database = req(modName) as new (
-      filename: string,
-      options?: Record<string, unknown>,
-    ) => SqliteDb;
-    const db = new Database(resolveDbPath());
-    pragma(db, "journal_mode = WAL");
-
-    const migrationPath = path.join(
-      process.cwd(),
-      "src",
-      "lib",
-      "migrations",
-      "002_chat.sql",
-    );
-    if (fs.existsSync(migrationPath)) {
-      const sql = fs.readFileSync(migrationPath, "utf8");
-      runSql(db, sql);
-    } else {
-      runSql(
-        db,
-        `CREATE TABLE IF NOT EXISTS chat_messages (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           ts INTEGER NOT NULL,
-           handle TEXT NOT NULL,
-           body TEXT NOT NULL,
-           ip_hash TEXT,
-           deleted_at INTEGER
-         );
-         CREATE INDEX IF NOT EXISTS chat_messages_ts ON chat_messages(ts DESC);`,
-      );
-    }
-
-    holder.__eidosChatDb = db;
-    return db;
+    // Canonical DB runs all src/lib/migrations/*.sql including 002_chat.sql,
+    // so the chat_messages table is guaranteed to exist.
+    return getCanonicalDb();
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn(
-      "[chat] better-sqlite3 unavailable, using in-memory store:",
+      "[chat] canonical DB unavailable, using in-memory store:",
       err instanceof Error ? err.message : err,
     );
-    holder.__eidosChatDb = null;
     return null;
   }
 }
