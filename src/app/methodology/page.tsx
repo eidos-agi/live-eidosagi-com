@@ -330,6 +330,42 @@ OLLAMA_FLASH_ATTENTION=1`}
         </pre>
       </section>
 
+      {/* How we count savings */}
+      <section id="savings" className="space-y-3">
+        <h2 className="font-heading text-2xl font-bold text-workshop-text">
+          How we count savings
+        </h2>
+        <p className="text-workshop-muted">
+          The strip at the top of the site is a live readout of the
+          self-cheapening loop: every activity event used to be narrated by
+          hosted Claude, and we&apos;re migrating that narration to a local
+          model running on the A6000. The percentage is the share of the last
+          24 hours of events authored by local inference (or zero-cost system
+          signals like webhooks), computed over a rolling window against the{" "}
+          <code className="font-mono text-workshop-command">events</code>{" "}
+          table.
+        </p>
+        <p className="text-workshop-muted">
+          The dollar number is a conservative floor. We assume each hosted
+          Claude event cost{" "}
+          <code className="font-mono text-workshop-command">
+            CLAUDE_EVENT_COST_USD
+          </code>{" "}
+          (default <span className="tnum">$0.004</span>, configurable in{" "}
+          <Link
+            href="https://github.com/eidos-agi/live-eidosagi-com/blob/main/.env.example"
+            className="text-workshop-primary underline-offset-4 hover:underline"
+          >
+            .env.example
+          </Link>
+          ) and compare to the counterfactual where every event had been
+          hosted. Real Claude API costs vary with prompt size and model; our
+          estimate is deliberately low so the published number only ever
+          rounds down. Events authored by humans are excluded from the ratio —
+          they&apos;re a signal, not an inference cost.
+        </p>
+      </section>
+
       {/* Source */}
       <section className="space-y-3">
         <h2 className="font-heading text-2xl font-bold text-workshop-text">
