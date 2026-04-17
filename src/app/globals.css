@@ -98,3 +98,23 @@ body::before {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* SavingsStrip shimmer — a moving highlight band that tells the eye
+   "this is live data, not a static screenshot." Respects prefers-reduced-motion. */
+.savings-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 100%
+  );
+  animation: savings-shimmer-slide 2.8s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes savings-shimmer-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .savings-shimmer { animation: none; opacity: 0; }
+}

@@ -201,9 +201,15 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
       {/* Bar row — pure graphic, no overlaid text. Thin and tasteful. */}
       <div className="relative h-[8px] overflow-hidden bg-[var(--color-bg)]/50">
         <div
-          className={`absolute inset-y-0 left-0 transition-[width,background-color] duration-700 ease-out ${fillColor(share)}`}
+          className={`absolute inset-y-0 left-0 overflow-hidden transition-[width,background-color] duration-700 ease-out ${fillColor(share)}`}
           style={{ width: fillWidth }}
-        />
+        >
+          {/* Shimmer — moving highlight band signals 'live data' */}
+          <div
+            aria-hidden
+            className="savings-shimmer absolute inset-y-0 w-1/3"
+          />
+        </div>
         {/* Goal tick at 90% — full-height vertical line on the bar */}
         <div
           className="pointer-events-none absolute inset-y-0 flex flex-col items-center"
