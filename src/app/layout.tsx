@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import ActivitySidebar from "@/components/ActivitySidebar";
 import ChatSidebar from "@/components/ChatSidebar";
+import LaunchBanner from "@/components/LaunchBanner";
 import LinksFooter from "@/components/LinksFooter";
 import SavingsStrip from "@/components/SavingsStrip";
 
@@ -135,6 +136,7 @@ export default function RootLayout({
             </span>
           </nav>
         </header>
+        <LaunchBanner />
         <SavingsStrip />
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
         <LinksFooter />
