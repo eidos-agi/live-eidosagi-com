@@ -45,14 +45,39 @@ MAX_TURNS = 8
 MAX_TOKENS = int(os.environ.get("QWEN_MAX_TOKENS", "1500"))
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# Expanded 2026-04-17: Qwen can now author any app/lib/component code,
+# migrations, CI workflow, and root config. Still hard-walls off the
+# most dangerous paths (node_modules, .git, secrets).
 WRITE_ALLOW_PREFIXES = (
-    "src/app/research/",
-    "src/app/methodology/",
-    "src/app/up-next/",
+    "src/",
     "scripts/",
+    "public/",
     ".ike/tasks/",
+    ".ike/self-improvement.md",
+    ".visionlog/",
+    ".research/",
+    ".github/workflows/",
+    ".github/dependabot.yml",
+    "Dockerfile",
+    ".dockerignore",
+    ".gitignore",
+    "next.config.ts",
+    "next.config.js",
+    "tailwind.config.ts",
+    "tsconfig.json",
+    "package.json",
 )
-WRITE_MAX_BYTES = 10_000
+# Hard-denied regardless of prefix match.
+WRITE_DENY_PATHS = (
+    ".env",
+    ".env.local",
+    ".env.production",
+    "pnpm-lock.yaml",  # let pnpm manage its own lockfile
+)
+WRITE_MAX_BYTES = 40_000  # up from 10 KB — real files need more
+
+# Git/PR ops pinned to qwen/* branches only. Hard-coded regex below.
+QWEN_BRANCH_PREFIX = "qwen/"
 COMMAND_ALLOWLIST = {
     "pnpm build",
     "pnpm test",
@@ -61,7 +86,16 @@ COMMAND_ALLOWLIST = {
     "git diff",
     "git status",
     "git diff --stat",
+    "git diff HEAD",
 }
+# Commands with dynamic arguments — matched by prefix instead of literal.
+COMMAND_PREFIX_ALLOWLIST = (
+    "git checkout -b qwen/",
+    "git add ",
+    "git commit -m ",
+    "git push -u origin qwen/",
+    "gh pr create --title ",
+)
 
 
 def ingest(kind: str, payload: dict) -> None:
@@ -211,10 +245,12 @@ def exec_tool(name: str, args_json: str) -> str:
         content = args.get("content", "")
         if not isinstance(content, str):
             return "error: content must be a string"
-        if not any(rel.startswith(p) for p in WRITE_ALLOW_PREFIXES):
-            return f"error: path not in allowlist ({', '.join(WRITE_ALLOW_PREFIXES)})"
-        if ".." in rel.split("/"):
-            return "error: path traversal not allowed"
+        if rel in WRITE_DENY_PATHS or rel.startswith(tuple(p + "/" for p in WRITE_DENY_PATHS if "/" not in p)):
+            return f"error: path is in hard-deny list"
+        if not any(rel.startswith(p) or rel == p for p in WRITE_ALLOW_PREFIXES):
+            return f"error: path not in allowlist"
+        if ".." in rel.split("/") or rel.startswith(".git/") or "/.git/" in rel:
+            return "error: path traversal / .git write denied"
         size = len(content.encode("utf-8"))
         if size > WRITE_MAX_BYTES:
             return f"error: {size} bytes exceeds {WRITE_MAX_BYTES} cap"
@@ -231,8 +267,18 @@ def exec_tool(name: str, args_json: str) -> str:
         return f"wrote {size} bytes to {rel}"
     if name == "run_command":
         cmd = str(args.get("cmd", "")).strip()
-        if cmd not in COMMAND_ALLOWLIST:
-            return f"error: cmd not in allowlist ({sorted(COMMAND_ALLOWLIST)})"
+        allowed = (
+            cmd in COMMAND_ALLOWLIST
+            or any(cmd.startswith(p) for p in COMMAND_PREFIX_ALLOWLIST)
+        )
+        if not allowed:
+            return "error: cmd not in allowlist (see COMMAND_ALLOWLIST / COMMAND_PREFIX_ALLOWLIST)"
+        # Guard: any command that creates or pushes a branch must target qwen/*
+        if ("checkout -b " in cmd or "push -u origin " in cmd) and QWEN_BRANCH_PREFIX not in cmd:
+            return f"error: branch ops must target {QWEN_BRANCH_PREFIX}* branches"
+        # Guard: never let Qwen merge or force-push
+        if any(tok in cmd for tok in (" pr merge ", " push -f", " push --force", " reset --hard", " branch -D")):
+            return "error: destructive op denied"
         t0 = time.time()
         try:
             proc = subprocess.run(
