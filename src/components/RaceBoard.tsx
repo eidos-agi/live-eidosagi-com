@@ -171,17 +171,31 @@ export default function RaceBoard({ runId, lanes }: Props) {
           );
         })}
       </div>
-      {events.length === 0 && (
+      {events.length === 0 && runId == null && (
         <div className="rounded border border-dashed border-workshop-muted/25 bg-workshop-surface/50 p-8 text-center text-sm text-workshop-muted">
-          Waiting for data. POST progress events to{" "}
+          No runs recorded yet. POST to{" "}
           <code className="rounded bg-workshop-bg px-1.5 py-0.5 font-mono text-xs text-workshop-command">
             /api/ingest
           </code>{" "}
           with header{" "}
           <code className="rounded bg-workshop-bg px-1.5 py-0.5 font-mono text-xs text-workshop-command">
             X-Ingest-Token
-          </code>
-          .
+          </code>{" "}
+          to start the race.
+        </div>
+      )}
+      {events.length === 0 && runId != null && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-workshop-muted/20 bg-workshop-surface/40 px-4 py-3 text-sm text-workshop-muted">
+          <span>
+            race finished — this lane state is the closing snapshot. The next
+            run will light up live.
+          </span>
+          <a
+            href="/models"
+            className="font-mono text-[11px] uppercase tracking-wider text-workshop-primary hover:underline"
+          >
+            full leaderboard →
+          </a>
         </div>
       )}
     </div>
