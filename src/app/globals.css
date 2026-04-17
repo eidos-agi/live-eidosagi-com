@@ -2,23 +2,99 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   eidosagi.com workshop palette — warm dark, walnut + brass
+   Sourced from eidosagi.com/src/styles/tokens.css (workshop default)
+   ============================================================ */
+
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('/fonts/SpaceGrotesk-latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: optional;
+}
+
 :root {
   color-scheme: dark;
+
+  /* Workshop palette */
+  --color-bg:        #161210;   /* warm near-black, brown not blue */
+  --color-surface:   #1e1a17;   /* raised surfaces — walnut */
+  --color-text:      #dcd5cb;   /* warm cream */
+  --color-muted:     #8b8179;   /* warm mid-tone */
+  --color-primary:   #c4935a;   /* amber brass — THE accent */
+  --color-secondary: #7a8c72;   /* sage green */
+  --color-command:   #b8c4a0;   /* muted green for code/commands */
+  --color-danger:    #c4694f;   /* terracotta — for VRAM hot zone */
+
+  /* Type */
+  --font-heading: 'Space Grotesk', system-ui, sans-serif;
+  --font-body:    'Space Grotesk', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --z-grain: 9999;
 }
 
 html,
 body {
-  background: #07090d;
-  color: #e6e9ef;
+  background: var(--color-bg);
+  color: var(--color-text);
   min-height: 100%;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* uPlot styling under dark theme */
+/* Signature SVG fractalNoise grain overlay — identical to eidosagi.com */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+  z-index: var(--z-grain);
+}
+
+/* Tabular numerics class — JetBrains Mono with tnum + zero */
+.tnum {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* Leader-lane glow — amber brass */
+.lane-leader {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 55%, transparent),
+    0 0 28px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+/* VRAM "hot" zone — terracotta */
+.vram-hot {
+  color: var(--color-danger);
+}
+
+/* uPlot styling under workshop theme */
 .uplot,
 .u-wrap {
   background: transparent !important;
 }
 .u-legend,
 .u-label {
-  color: #9aa4b2 !important;
+  color: var(--color-muted) !important;
+  font-family: var(--font-mono) !important;
+}
+
+/* Selection + focus */
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  color: var(--color-text);
+}
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }

@@ -13,7 +13,7 @@ export default function Gauge({
   value,
   softMax = 200,
   label = "tok/s",
-  accent = "#60a5fa",
+  accent = "#c4935a",
 }: Props) {
   const v = value ?? 0;
   const upper = Math.max(softMax, v * 1.1);
@@ -21,14 +21,17 @@ export default function Gauge({
   return (
     <div className="w-full">
       <div className="flex items-baseline justify-between">
-        <span className="text-xs uppercase tracking-wider text-gray-500">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
           {label}
         </span>
-        <span className="font-mono text-2xl font-bold text-white tabular-nums">
+        <span
+          className="tnum text-2xl font-bold text-workshop-text"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
           {value == null ? "—" : v.toFixed(1)}
         </span>
       </div>
-      <div className="mt-2 h-2 w-full overflow-hidden rounded bg-bg-border">
+      <div className="mt-2 h-2 w-full overflow-hidden rounded bg-workshop-muted/20">
         <div
           className="h-full rounded transition-[width] duration-300"
           style={{ width: `${pct * 100}%`, background: accent }}

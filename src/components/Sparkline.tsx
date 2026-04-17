@@ -13,7 +13,7 @@ export default function Sparkline({
   values,
   width = 160,
   height = 36,
-  stroke = "#60a5fa",
+  stroke = "#c4935a",
 }: Props) {
   if (values.length < 2) {
     return (
@@ -23,7 +23,8 @@ export default function Sparkline({
           y1={height / 2}
           x2={width}
           y2={height / 2}
-          stroke="#2a3140"
+          stroke="#8b8179"
+          strokeOpacity="0.35"
           strokeDasharray="2 3"
         />
       </svg>

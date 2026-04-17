@@ -1,4 +1,7 @@
+import Link from "next/link";
+import ActivityFeed from "@/components/ActivityFeed";
 import RaceBoard from "@/components/RaceBoard";
+import { listEvents } from "@/lib/events";
 import { listRuns } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -27,24 +30,51 @@ const DEFAULT_LANES = [
 ] as const;
 
 export default async function HomePage() {
-  const runs = await listRuns();
+  const [runs, recentEvents] = await Promise.all([
+    listRuns(),
+    listEvents({ limit: 10 }),
+  ]);
   // "Live" = most recent run with endedAt == null. Fall back to most recent.
   const live = runs.find((r) => r.endedAt == null) ?? runs[0] ?? null;
   const gpus = live && live.gpus.length > 0 ? live.gpus : DEFAULT_LANES.slice();
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h1 className="text-2xl font-bold text-white">
-          Three-Lane GPU Race
-        </h1>
-        <p className="mt-1 text-sm text-gray-400">
-          {live
-            ? `Live run: ${live.id}${live.label ? ` — ${live.label}` : ""}`
-            : "Waiting for data. Start a run on any Thunder Compute instance and POST to /api/ingest."}
-        </p>
-      </section>
-      <RaceBoard runId={live?.id ?? null} lanes={gpus} />
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {/* Left column — the three-lane race */}
+      <div className="space-y-6">
+        <section>
+          <h1 className="font-heading text-3xl font-bold text-workshop-text">
+            Three-Lane GPU Race
+          </h1>
+          <p className="mt-1 text-sm text-workshop-muted">
+            {live
+              ? `Live run: ${live.id}${live.label ? ` — ${live.label}` : ""}`
+              : "Waiting for data. Start a run on any Thunder Compute instance and POST to /api/ingest."}
+          </p>
+        </section>
+        <RaceBoard runId={live?.id ?? null} lanes={gpus} />
+      </div>
+
+      {/* Right column — live activity strip */}
+      <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-heading text-sm font-bold uppercase tracking-wider text-workshop-text">
+            Activity
+          </h2>
+          <Link
+            href="/activity"
+            className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
+          >
+            full feed →
+          </Link>
+        </div>
+        <ActivityFeed
+          initialEvents={recentEvents}
+          limit={10}
+          refreshMs={3000}
+          compact
+        />
+      </aside>
     </div>
   );
 }
