@@ -1,18 +1,16 @@
 // Leaderboard aggregation helpers.
 //
-// Intentionally separate from src/lib/events.ts (which talks to the Activity
-// Stream's Postgres) and src/lib/store.ts (which the SQLite-refactor subagent
-// will soon replace). This module reads the run/progress/score JSONL files
-// directly and aggregates by (model, gpu). Keep it read-only.
-//
-// If the on-disk layout migrates to SQLite, swap the internals of
-// `loadAllRawData()` and the rest of the file stays put.
+// Reads runs + progress + scores from the SQLite store (the canonical
+// data layer since PR #2). Keep read-only.
 
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import type { EvalScore, ProgressEvent, Run } from "./types";
-
-const DATA_ROOT = path.join(process.cwd(), "data", "runs");
+import {
+  getDb,
+  listRuns,
+  listProgressForRun,
+  listScoresForRun,
+  type GpuConfig as DbGpuConfig,
+} from "./db";
+import type { EvalScore, ProgressEvent, GpuConfig, Run } from "./types";
 
 export interface RawData {
   runs: Run[];
@@ -20,68 +18,87 @@ export interface RawData {
   scores: EvalScore[];
 }
 
+function dbGpuToTypes(g: DbGpuConfig): GpuConfig {
+  return {
+    name: g.name,
+    type: (g.type ?? "") as string,
+    vramGB: (g.vramGB ?? 0) as number,
+    costPerHour: (g.costPerHour ?? 0) as number,
+  };
+}
+
 /**
- * Load every run, progress event, and eval score from the JSONL store.
- * Returns empty arrays if the data directory does not exist yet (fresh deploy,
- * no volume mounted, etc). Never throws.
+ * Load every run, progress event, and eval score from SQLite. Returns
+ * empty arrays on DB failure (fresh deploy, no volume mounted).
+ * Never throws.
  */
 export async function loadAllRawData(): Promise<RawData> {
   const out: RawData = { runs: [], progress: [], scores: [] };
-  let entries;
+
+  let dbRuns;
   try {
-    entries = await fs.readdir(DATA_ROOT, { withFileTypes: true });
+    getDb();
+    dbRuns = listRuns(500);
   } catch {
     return out;
   }
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const runId = entry.name;
-    const runDir = path.join(DATA_ROOT, runId);
+  out.runs = dbRuns.map((r) => ({
+    id: r.id,
+    startedAt: r.startedAt,
+    endedAt: r.endedAt,
+    gpus: (r.gpus ?? []).map(dbGpuToTypes),
+    models: r.models ?? [],
+    label: r.promptLabel ?? undefined,
+  }));
 
-    // run.json
+  for (const r of dbRuns) {
+    // progress
     try {
-      const raw = await fs.readFile(path.join(runDir, "run.json"), "utf8");
-      out.runs.push(JSON.parse(raw) as Run);
-    } catch {
-      // skip runs without run.json — they may be mid-write
-      continue;
-    }
-
-    // events.jsonl (progress)
-    try {
-      const raw = await fs.readFile(
-        path.join(runDir, "events.jsonl"),
-        "utf8",
-      );
-      for (const line of raw.split("\n")) {
-        if (!line.trim()) continue;
-        try {
-          out.progress.push(JSON.parse(line) as ProgressEvent);
-        } catch {
-          // ignore malformed line
-        }
+      const prog = listProgressForRun(r.id);
+      for (const p of prog) {
+        out.progress.push({
+          runId: p.runId,
+          ts: p.ts,
+          gpuId: p.gpuId,
+          model: p.model,
+          useCase: p.useCase ?? "",
+          tokenPerSec: p.tokPerSec ?? 0,
+          latencyMs: p.latencyMs ?? 0,
+          vramUsedMB: p.vramUsedMb ?? 0,
+          evalProgressIdx: p.evalIdx ?? 0,
+          evalTotal: p.evalTotal ?? 0,
+        });
       }
     } catch {
-      // no events yet — fine
+      // skip this run's progress
     }
 
-    // scores.jsonl
+    // scores
     try {
-      const raw = await fs.readFile(
-        path.join(runDir, "scores.jsonl"),
-        "utf8",
-      );
-      for (const line of raw.split("\n")) {
-        if (!line.trim()) continue;
-        try {
-          out.scores.push(JSON.parse(line) as EvalScore);
-        } catch {
-          // ignore malformed line
-        }
+      const scores = listScoresForRun(r.id);
+      for (const s of scores) {
+        const dims =
+          (s.dimensions as Record<string, number> | null) ?? {};
+        out.scores.push({
+          runId: s.runId,
+          model: s.model,
+          useCase: s.useCase,
+          testCaseId: s.testCaseId ?? "",
+          composite: s.composite ?? 0,
+          dimensions: {
+            correctness: Number(dims.correctness ?? 0),
+            completeness: Number(dims.completeness ?? 0),
+            formatQuality: Number(
+              dims.formatQuality ?? dims.format_quality ?? 0,
+            ),
+            conciseness: Number(dims.conciseness ?? 0),
+          },
+          tokPerSec: s.tokPerSec ?? 0,
+        });
       }
     } catch {
-      // no scores yet — fine
+      // skip this run's scores
     }
   }
 
