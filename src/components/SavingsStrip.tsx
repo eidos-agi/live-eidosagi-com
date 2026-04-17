@@ -174,14 +174,14 @@ export default function SavingsStrip() {
               <span className="hidden text-workshop-muted sm:inline">
                 · goal 90%
               </span>
-              <span className="text-workshop-muted/60" aria-hidden>
+              <span className="text-workshop-muted" aria-hidden>
                 ·
               </span>
               <span className="tnum text-workshop-command">
                 {formatUsd(saved)}
               </span>
               <span className="text-workshop-muted">saved</span>
-              <span className="hidden text-workshop-muted/60 sm:inline" aria-hidden>
+              <span className="hidden text-workshop-muted sm:inline" aria-hidden>
                 ·
               </span>
               <span className="hidden tnum text-workshop-muted sm:inline">
@@ -192,7 +192,7 @@ export default function SavingsStrip() {
 
           <a
             href="/methodology#savings"
-            className="ml-auto text-workshop-muted/70 transition hover:text-workshop-primary"
+            className="ml-auto text-workshop-muted transition hover:text-workshop-primary"
           >
             how?
           </a>

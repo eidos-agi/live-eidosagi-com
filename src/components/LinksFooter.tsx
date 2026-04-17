@@ -74,7 +74,7 @@ export default function LinksFooter() {
             </Link>
           ),
         )}
-        <span className="ml-auto text-workshop-muted/80">
+        <span className="ml-auto text-workshop-muted">
           © 2026 Eidos AGI
         </span>
       </div>
