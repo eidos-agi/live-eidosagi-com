@@ -6,7 +6,7 @@ import AutoRefresh from "@/components/AutoRefresh";
 import ChatSidebar from "@/components/ChatSidebar";
 import LaunchBanner from "@/components/LaunchBanner";
 import LinksFooter from "@/components/LinksFooter";
-import SavingsStrip from "@/components/SavingsStrip";
+import SavingsStripServer from "@/components/SavingsStripServer";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://live.eidosagi.com";
@@ -144,7 +144,7 @@ export default function RootLayout({
           </nav>
         </header>
         <LaunchBanner />
-        <SavingsStrip />
+        <SavingsStripServer />
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
         <LinksFooter />
         <ActivitySidebar />
