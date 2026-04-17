@@ -9,7 +9,8 @@
 
 import { useEffect, useState } from "react";
 
-const LINKEDIN_URL = "https://www.linkedin.com/in/danielshanklin/";
+const LINKEDIN_URL =
+  "https://www.linkedin.com/feed/update/urn:li:activity:7450954697034608641/";
 const DISMISS_KEY = "eidos.launch.dismissed.v1";
 
 export default function LaunchBanner() {
@@ -41,9 +42,9 @@ export default function LaunchBanner() {
         </span>
         <span className="hidden text-workshop-muted sm:inline">·</span>
         <span className="truncate text-workshop-text">
-          Claude + Eidos AGI are moving themselves to{" "}
+          Eidos is moving itself to{" "}
           <span className="text-workshop-primary">90%-cheaper silicon</span>{" "}
-          without losing their intelligence.
+          without losing intelligence. Watch.
         </span>
         <a
           href={LINKEDIN_URL}
