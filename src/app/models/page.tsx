@@ -1,254 +1,300 @@
-"use client";
-
-// /models — sortable model × GPU leaderboard.
-// Client component: fetches /api/models once, stores rows in state, sorts in
-// memory. Empty state when the API returns zero rows.
+// /models — DB-backed, SSR. Each model gets a card that joins registry
+// metadata (family, arch, size, release, license, role) with live
+// benchmark perf (tok/s per GPU, $/M-tokens). One query per table,
+// no client-side fetch. Sibling: /models/catalog (raw registry table).
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { listModels, type ModelRow } from "@/lib/db";
+import { buildLeaderboard, type LeaderboardRow } from "@/lib/leaderboard";
 
-interface LeaderboardRow {
-  model: string;
-  gpuId: string;
-  gpuType: string | null;
-  tokenPerSec: number;
-  compositeScore: number;
-  costPerMillionTokensUsd: number | null;
-  progressSamples: number;
-  scoreSamples: number;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "Models · live.eidosagi.com",
+  description:
+    "Every model we've pulled on the H100, with live benchmark throughput and cost per million tokens. Sourced from the SQLite registry + progress/scores tables.",
+};
+
+// ────────────────────────── formatting helpers ──────────────────────────
+
+function fmtSize(gb: number | null): string {
+  if (gb == null) return "—";
+  if (gb < 1) return `${(gb * 1000).toFixed(0)} MB`;
+  if (gb < 10) return `${gb.toFixed(1)} GB`;
+  return `${gb.toFixed(0)} GB`;
 }
 
-type SortKey =
-  | "model"
-  | "gpuId"
-  | "tokenPerSec"
-  | "compositeScore"
-  | "costPerMillionTokensUsd";
-type SortDir = "asc" | "desc";
-
-function formatNumber(n: number, digits = 1): string {
-  if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
+function fmtParams(b: number | null): string {
+  if (b == null) return "—";
+  if (b < 1) return `${(b * 1000).toFixed(0)}M`;
+  if (b < 10) return `${b.toFixed(1)}B`;
+  return `${b.toFixed(0)}B`;
 }
 
-function formatUsd(n: number | null): string {
+function fmtTokps(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  if (n < 10) return n.toFixed(1);
+  return Math.round(n).toString();
+}
+
+function fmtUsd(n: number | null): string {
   if (n == null || !Number.isFinite(n)) return "—";
   if (n >= 10) return `$${n.toFixed(2)}`;
-  if (n >= 1) return `$${n.toFixed(3)}`;
-  return `$${n.toFixed(4)}`;
+  if (n >= 1) return `$${n.toFixed(2)}`;
+  return `$${n.toFixed(3)}`;
 }
 
-export default function ModelsPage() {
-  const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("compositeScore");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/models", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const body = (await res.json()) as {
-          rows: LeaderboardRow[];
-          count: number;
-        };
-        if (!cancel) setRows(body.rows ?? []);
-      } catch (err) {
-        if (!cancel)
-          setError(err instanceof Error ? err.message : "fetch failed");
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
-
-  const sorted = useMemo(() => {
-    if (!rows) return null;
-    const copy = [...rows];
-    copy.sort((a, b) => {
-      const va = a[sortKey];
-      const vb = b[sortKey];
-      let cmp: number;
-      if (va == null && vb == null) cmp = 0;
-      else if (va == null) cmp = 1;
-      else if (vb == null) cmp = -1;
-      else if (typeof va === "number" && typeof vb === "number")
-        cmp = va - vb;
-      else cmp = String(va).localeCompare(String(vb));
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-    return copy;
-  }, [rows, sortKey, sortDir]);
-
-  function onSort(key: SortKey) {
-    if (key === sortKey) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      // numeric columns default to descending, string columns to ascending
-      setSortDir(
-        key === "model" || key === "gpuId" ? "asc" : "desc",
-      );
-    }
+function familyTone(family: string): { chip: string; accent: string } {
+  switch (family) {
+    case "qwen":
+      return {
+        chip: "border-workshop-primary/50 text-workshop-primary bg-workshop-primary/5",
+        accent: "text-workshop-primary",
+      };
+    case "llama":
+      return {
+        chip: "border-workshop-command/50 text-workshop-command bg-workshop-command/5",
+        accent: "text-workshop-command",
+      };
+    case "gemma":
+      return {
+        chip: "border-workshop-secondary/50 text-workshop-secondary bg-workshop-secondary/5",
+        accent: "text-workshop-secondary",
+      };
+    case "deepseek":
+      return {
+        chip: "border-workshop-danger/50 text-workshop-danger bg-workshop-danger/5",
+        accent: "text-workshop-danger",
+      };
+    default:
+      return {
+        chip: "border-workshop-muted/40 text-workshop-muted bg-workshop-muted/5",
+        accent: "text-workshop-text",
+      };
   }
+}
 
-  const arrow = (key: SortKey) =>
-    sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+// ─────────────────────────────── page ───────────────────────────────────
+
+interface ModelCard {
+  model: ModelRow;
+  perf: LeaderboardRow[]; // one per GPU that has run it
+}
+
+function groupPerf(
+  leaderboard: LeaderboardRow[],
+  modelName: string,
+): LeaderboardRow[] {
+  return leaderboard
+    .filter((r) => r.model === modelName && r.progressSamples > 0)
+    .sort((a, b) => b.tokenPerSec - a.tokenPerSec);
+}
+
+export default async function ModelsPage() {
+  const [models, leaderboard] = await Promise.all([
+    Promise.resolve(listModels()),
+    buildLeaderboard(),
+  ]);
+
+  const cards: ModelCard[] = models
+    .filter((m) => !m.name.endsWith(":latest")) // hide aliases
+    .map((m) => ({ model: m, perf: groupPerf(leaderboard, m.name) }));
+
+  const bestTps = Math.max(
+    1,
+    ...leaderboard.map((r) => (r.progressSamples > 0 ? r.tokenPerSec : 0)),
+  );
 
   return (
-    <div className="space-y-6 py-6">
-      <header className="space-y-2">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-workshop-primary">
-          Leaderboard
+    <main className="mx-auto max-w-6xl px-6 py-10 text-workshop-text">
+      <header className="mb-8">
+        <div className="flex items-baseline gap-4">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">
+            Models
+          </h1>
+          <span className="font-mono text-xs uppercase tracking-wider text-workshop-muted">
+            {cards.length} weights on H100 · benchmarks live from SQLite
+          </span>
+        </div>
+        <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-workshop-text/90">
+          Every model we&apos;ve pulled, with what it <em>is</em> (registry)
+          and what it <em>does</em> (benchmarks). One SSR query per table,
+          joined in memory, no client-side fetch. Fastest GPU wins the model&apos;s throughput row.
         </p>
-        <h1 className="font-heading text-4xl font-bold text-workshop-text">
-          Models
-        </h1>
-        <p className="max-w-3xl text-workshop-muted">
-          Every model, on every GPU, with tokens per second, the composite
-          score across all eight use cases, and the resulting dollars per
-          million tokens. Click a column to sort.{" "}
-          <Link
-            href="/methodology"
-            className="text-workshop-primary underline-offset-4 hover:underline"
-          >
-            How we measure →
+        <p className="mt-3 font-mono text-[11px] uppercase tracking-wider text-workshop-muted">
+          see also:{" "}
+          <Link href="/models/catalog" className="text-workshop-primary hover:underline">
+            raw catalog
+          </Link>{" "}
+          ·{" "}
+          <Link href="/api/models" className="hover:underline">
+            /api/models
+          </Link>{" "}
+          ·{" "}
+          <Link href="/api/models/catalog" className="hover:underline">
+            /api/models/catalog
           </Link>
         </p>
       </header>
 
-      {error && (
-        <div className="rounded border border-workshop-danger/40 bg-workshop-surface/40 p-3 font-mono text-sm text-workshop-danger">
-          Error: {error}
+      {cards.length === 0 ? (
+        <div className="rounded border border-workshop-muted/30 bg-workshop-surface/40 p-8 text-center font-mono text-sm text-workshop-muted">
+          no models registered yet — migration 005 hasn&apos;t run on this DB.
         </div>
-      )}
-
-      {sorted && sorted.length === 0 && !error && (
-        <div className="rounded border border-workshop-muted/20 bg-workshop-surface/40 p-6 text-center">
-          <p className="font-heading text-workshop-text">
-            No runs recorded yet — check back soon.
-          </p>
-          <p className="mt-2 text-sm text-workshop-muted">
-            When a run finishes, its progress and scores will land here
-            automatically.
-          </p>
-        </div>
-      )}
-
-      {sorted && sorted.length > 0 && (
-        <div className="overflow-x-auto rounded border border-workshop-muted/20">
-          <table className="w-full text-sm">
-            <thead className="bg-workshop-surface/80 text-left">
-              <tr>
-                <Th
-                  label={`Model${arrow("model")}`}
-                  onClick={() => onSort("model")}
-                />
-                <Th
-                  label={`GPU${arrow("gpuId")}`}
-                  onClick={() => onSort("gpuId")}
-                />
-                <Th
-                  label={`tok/s${arrow("tokenPerSec")}`}
-                  onClick={() => onSort("tokenPerSec")}
-                  align="right"
-                />
-                <Th
-                  label={`Composite${arrow("compositeScore")}`}
-                  onClick={() => onSort("compositeScore")}
-                  align="right"
-                />
-                <Th
-                  label={`$/1M tok${arrow("costPerMillionTokensUsd")}`}
-                  onClick={() => onSort("costPerMillionTokensUsd")}
-                  align="right"
-                />
-                <Th label="Samples" align="right" />
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((r) => (
-                <tr
-                  key={`${r.model}::${r.gpuId}`}
-                  className="border-t border-workshop-muted/10"
-                >
-                  <td className="p-3 font-heading text-workshop-text">
-                    {r.model}
-                  </td>
-                  <td className="p-3 text-workshop-muted">
-                    <span className="font-mono text-workshop-command">
-                      {r.gpuId}
-                    </span>
-                    {r.gpuType && (
-                      <span className="ml-2 text-xs text-workshop-muted">
-                        {r.gpuType}
+      ) : (
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {cards.map(({ model, perf }) => {
+            const tone = familyTone(model.family);
+            const topTps = perf[0]?.tokenPerSec ?? 0;
+            const topGpu = perf[0]?.gpuType ?? null;
+            return (
+              <li
+                key={model.name}
+                className={`relative flex flex-col rounded border bg-workshop-surface/50 p-5 transition hover:bg-workshop-surface ${
+                  model.defaultInHarness
+                    ? "border-workshop-command/50 shadow-[0_0_24px_rgba(184,196,160,0.10)]"
+                    : "border-workshop-muted/25"
+                }`}
+              >
+                {/* Header — name + family chip + role pills */}
+                <header className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2
+                      className={`truncate font-mono text-[15px] font-semibold ${tone.accent}`}
+                      title={model.name}
+                    >
+                      {model.name}
+                    </h2>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={`inline-block rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${tone.chip}`}
+                      >
+                        {model.family}
+                        {model.generation ? ` ${model.generation}` : ""}
                       </span>
-                    )}
-                  </td>
-                  <td className="p-3 text-right font-mono text-workshop-command tnum">
-                    {formatNumber(r.tokenPerSec, 1)}
-                  </td>
-                  <td className="p-3 text-right font-mono text-workshop-primary tnum">
-                    {formatNumber(r.compositeScore, 3)}
-                  </td>
-                  <td className="p-3 text-right font-mono text-workshop-text tnum">
-                    {formatUsd(r.costPerMillionTokensUsd)}
-                  </td>
-                  <td className="p-3 text-right font-mono text-workshop-muted tnum">
-                    {r.progressSamples} / {r.scoreSamples}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      {model.architecture && (
+                        <span className="inline-block rounded border border-workshop-muted/30 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+                          {model.architecture}
+                        </span>
+                      )}
+                      {model.defaultInHarness && (
+                        <span className="inline-block rounded border border-workshop-command/50 bg-workshop-command/5 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-workshop-command">
+                          harness default
+                        </span>
+                      )}
+                      {model.inRaceRotation && (
+                        <span className="inline-block rounded border border-workshop-primary/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-workshop-primary">
+                          race
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </header>
+
+                {/* Specs row */}
+                <dl className="mt-4 grid grid-cols-4 gap-3 text-[12px]">
+                  <div>
+                    <dt className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+                      params
+                    </dt>
+                    <dd className="mt-0.5 font-mono tnum text-workshop-text">
+                      {fmtParams(model.totalParamsB)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+                      active
+                    </dt>
+                    <dd className="mt-0.5 font-mono tnum text-workshop-text">
+                      {model.architecture === "moe"
+                        ? fmtParams(model.activeParamsB)
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+                      size
+                    </dt>
+                    <dd className="mt-0.5 font-mono tnum text-workshop-text">
+                      {fmtSize(model.sizeGB)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+                      released
+                    </dt>
+                    <dd className="mt-0.5 font-mono tnum text-workshop-muted">
+                      {model.releasedAt ?? "—"}
+                    </dd>
+                  </div>
+                </dl>
+
+                {/* Perf band — tok/s bar + cost/M per GPU */}
+                <section className="mt-5 rounded border border-workshop-muted/15 bg-workshop-bg/40 p-3">
+                  {perf.length === 0 ? (
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-workshop-muted">
+                      no benchmark samples yet
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-baseline justify-between font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+                        <span>live throughput</span>
+                        <span className="tnum text-workshop-text">
+                          {fmtTokps(topTps)} tok/s on {topGpu}
+                        </span>
+                      </div>
+                      {perf.map((r) => {
+                        const widthPct = Math.min(
+                          100,
+                          Math.max(3, (r.tokenPerSec / bestTps) * 100),
+                        );
+                        return (
+                          <div key={`${r.model}-${r.gpuId}`} className="space-y-1">
+                            <div className="flex items-baseline justify-between font-mono text-[11px] text-workshop-muted">
+                              <span>{r.gpuType ?? r.gpuId}</span>
+                              <span className="flex gap-3">
+                                <span className="tnum text-workshop-text">
+                                  {fmtTokps(r.tokenPerSec)} tok/s
+                                </span>
+                                <span className="tnum">
+                                  {fmtUsd(r.costPerMillionTokensUsd)}/M
+                                </span>
+                              </span>
+                            </div>
+                            <div className="relative h-1.5 overflow-hidden rounded bg-workshop-muted/15">
+                              <div
+                                className={`absolute inset-y-0 left-0 rounded ${
+                                  model.family === "qwen"
+                                    ? "bg-workshop-primary"
+                                    : model.family === "llama"
+                                      ? "bg-workshop-command"
+                                      : "bg-workshop-secondary"
+                                }`}
+                                style={{ width: `${widthPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                {/* License + notes footer */}
+                <footer className="mt-4 flex items-baseline justify-between gap-3 text-[11px] text-workshop-muted">
+                  <span className="font-mono">{model.license ?? "—"}</span>
+                  {model.notes && (
+                    <span className="truncate text-right italic" title={model.notes}>
+                      {model.notes}
+                    </span>
+                  )}
+                </footer>
+              </li>
+            );
+          })}
+        </ul>
       )}
-
-      {rows === null && !error && (
-        <p className="font-mono text-sm text-workshop-muted">Loading…</p>
-      )}
-
-      <p className="font-mono text-xs text-workshop-muted">
-        Samples column: progress-events / score-rows. All data available as{" "}
-        <Link href="/api/models" className="text-workshop-command">
-          JSON
-        </Link>{" "}
-        or via the{" "}
-        <Link
-          href="/methodology#download"
-          className="text-workshop-primary underline-offset-4 hover:underline"
-        >
-          raw downloads on /methodology
-        </Link>
-        .
-      </p>
-    </div>
-  );
-}
-
-function Th({
-  label,
-  onClick,
-  align = "left",
-}: {
-  label: string;
-  onClick?: () => void;
-  align?: "left" | "right";
-}) {
-  return (
-    <th
-      onClick={onClick}
-      className={`p-3 font-heading text-xs font-bold uppercase tracking-wider text-workshop-text ${
-        onClick ? "cursor-pointer select-none hover:text-workshop-primary" : ""
-      } ${align === "right" ? "text-right" : "text-left"}`}
-    >
-      {label}
-    </th>
+    </main>
   );
 }

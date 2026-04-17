@@ -41,18 +41,47 @@ function priorityOf(raw: string | undefined): Priority {
 }
 
 function parseFrontMatter(body: string): Record<string, string> {
-  // Tasks stored like:
-  //   # TASK-0001 - Title
-  //   ## Status: To Do
-  //   ## Priority: High
-  //   ## Milestone: ...
-  //   ## Description
-  //   ...
+  // Supports two formats:
+  //
+  // A. Legacy H2-style:
+  //      # TASK-0001 - Title
+  //      ## Status: To Do
+  //      ## Priority: High
+  //
+  // B. YAML fenced (preferred, matches newer tasks):
+  //      ---
+  //      id: TASK-0025
+  //      title: 'foo'
+  //      status: To Do
+  //      priority: Urgent
+  //      ---
   const out: Record<string, string> = {};
+
+  // Pass A: H2 headers
   for (const line of body.split("\n")) {
     const m = line.match(/^##\s+([A-Za-z ]+?):\s*(.+?)\s*$/);
     if (m) out[m[1].trim().toLowerCase()] = m[2].trim();
   }
+
+  // Pass B: YAML fenced frontmatter at top of file
+  const yamlMatch = body.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+  if (yamlMatch) {
+    for (const rawLine of yamlMatch[1].split("\n")) {
+      const m = rawLine.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*?)\s*$/);
+      if (!m) continue;
+      const key = m[1].trim().toLowerCase();
+      let val = m[2].trim();
+      // Strip matching single/double quotes around the value.
+      if (
+        (val.startsWith("'") && val.endsWith("'")) ||
+        (val.startsWith('"') && val.endsWith('"'))
+      ) {
+        val = val.slice(1, -1);
+      }
+      if (val) out[key] = val;
+    }
+  }
+
   return out;
 }
 
@@ -90,13 +119,21 @@ export function loadUpNext(): UpNextTask[] {
     if (status.toLowerCase() === "done") continue;
 
     const titleMatch = body.match(/^#\s+(TASK-\d+)\s*[-—]\s*(.+?)\s*$/m);
-    const id = titleMatch?.[1] ?? f.split(" ")[0];
-    const title = titleMatch?.[2] ?? f;
+    const id = fm.id ?? titleMatch?.[1] ?? f.split(" ")[0];
+    // Prefer YAML title, then H1, then filename fallback (cleaned up).
+    const fallbackTitle = f.replace(/^TASK-\d+\s*-\s*/, "").replace(/\.md$/, "");
+    const title = fm.title ?? titleMatch?.[2] ?? fallbackTitle;
 
-    // Description = everything after "## Description" line (or empty)
+    // Description = everything after "## Description" H2, or the body text
+    // after the YAML frontmatter close, whichever is richer.
+    let description = "";
     const descIdx = body.toLowerCase().indexOf("## description");
-    const description =
-      descIdx >= 0 ? body.slice(descIdx).replace(/^## description\s*\n/i, "").trim() : "";
+    if (descIdx >= 0) {
+      description = body.slice(descIdx).replace(/^## description\s*\n/i, "").trim();
+    } else {
+      const yamlEnd = body.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/);
+      if (yamlEnd) description = body.slice(yamlEnd[0].length).trim();
+    }
 
     const priority = priorityOf(fm.priority);
     tasks.push({

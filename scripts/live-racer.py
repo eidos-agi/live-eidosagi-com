@@ -38,7 +38,10 @@ MODELS = [
     for m in os.environ.get(
         "RACER_MODELS",
         # Rotation — small to large. Only GPUs that have the model race that tick.
-        "llama3.2:1b,qwen2.5:1.5b,llama3.1:8b,qwen2.5:14b,qwen2.5:32b,qwen3:30b,llama3.3:70b,qwen2.5:72b",
+        # Trimmed to tags actually pulled on at least one GPU (2026-04-17):
+        # dropped qwen2.5:32b, qwen3:30b, llama3.3:70b (never pulled).
+        # Added qwen3.6:35b-a3b — the newest release (2026-04-16), sparse MoE.
+        "llama3.2:1b,qwen2.5:1.5b,llama3.1:8b,qwen2.5:14b,qwen3.6:35b-a3b,qwen2.5:72b",
     ).split(",")
     if m.strip()
 ]
