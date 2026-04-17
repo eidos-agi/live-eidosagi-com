@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://live.eidosagi.com/schemas/eval-score.schema.json",
+  "title": "EvalScore",
+  "type": "object",
+  "required": [
+    "runId",
+    "model",
+    "useCase",
+    "testCaseId",
+    "composite",
+    "dimensions",
+    "tokPerSec"
+  ],
+  "properties": {
+    "runId": { "type": "string" },
+    "model": { "type": "string" },
+    "useCase": { "type": "string" },
+    "testCaseId": { "type": "string" },
+    "composite": { "type": "number" },
+    "tokPerSec": { "type": "number" },
+    "dimensions": {
+      "type": "object",
+      "required": ["correctness", "completeness", "formatQuality", "conciseness"],
+      "properties": {
+        "correctness": { "type": "number" },
+        "completeness": { "type": "number" },
+        "formatQuality": { "type": "number" },
+        "conciseness": { "type": "number" }
+      }
+    }
+  }
+}

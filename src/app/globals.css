@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #07090d;
+  color: #e6e9ef;
+  min-height: 100%;
+}
+
+/* uPlot styling under dark theme */
+.uplot,
+.u-wrap {
+  background: transparent !important;
+}
+.u-legend,
+.u-label {
+  color: #9aa4b2 !important;
+}

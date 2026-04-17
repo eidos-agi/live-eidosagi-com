@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://live.eidosagi.com/schemas/gpu-config.schema.json",
+  "title": "GpuConfig",
+  "type": "object",
+  "required": ["name", "type", "vramGB", "costPerHour"],
+  "properties": {
+    "name": { "type": "string" },
+    "type": { "type": "string" },
+    "vramGB": { "type": "number" },
+    "costPerHour": { "type": "number" }
+  }
+}

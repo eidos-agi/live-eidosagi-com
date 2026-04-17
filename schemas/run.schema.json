@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://live.eidosagi.com/schemas/run.schema.json",
+  "title": "Run",
+  "type": "object",
+  "required": ["id", "startedAt", "endedAt", "gpus", "models"],
+  "properties": {
+    "id": { "type": "string" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "endedAt": { "type": ["string", "null"], "format": "date-time" },
+    "label": { "type": "string" },
+    "gpus": {
+      "type": "array",
+      "items": { "$ref": "gpu-config.schema.json" }
+    },
+    "models": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

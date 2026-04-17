@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://live.eidosagi.com/schemas/progress-event.schema.json",
+  "title": "ProgressEvent",
+  "type": "object",
+  "required": [
+    "runId",
+    "ts",
+    "gpuId",
+    "model",
+    "useCase",
+    "tokenPerSec",
+    "latencyMs",
+    "vramUsedMB",
+    "evalProgressIdx",
+    "evalTotal"
+  ],
+  "properties": {
+    "runId": { "type": "string" },
+    "ts": { "type": "string", "format": "date-time" },
+    "gpuId": { "type": "string" },
+    "model": { "type": "string" },
+    "useCase": { "type": "string" },
+    "tokenPerSec": { "type": "number" },
+    "latencyMs": { "type": "number" },
+    "vramUsedMB": { "type": "number" },
+    "evalProgressIdx": { "type": "integer" },
+    "evalTotal": { "type": "integer" }
+  }
+}
