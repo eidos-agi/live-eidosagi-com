@@ -38,12 +38,27 @@ export default function Commentator({ initial }: Props = {}) {
     };
   }, []);
 
+  // Rotate the label each minute so the strip feels alive even when the
+  // line itself hasn't changed yet. Era anchor: race desks, telegraphs,
+  // radio booths — the voices that narrate live events.
+  const LABELS = [
+    "commentary",
+    "race desk",
+    "silicon telegraph",
+    "booth",
+    "play-by-play",
+    "field radio",
+    "ticker",
+    "pit wall",
+  ];
+  const label = LABELS[Math.floor(Date.now() / 60_000) % LABELS.length];
+
   return (
     <div className="border-t border-workshop-muted/15 bg-workshop-surface/40">
       <div className="mx-auto max-w-7xl px-6 py-3">
         <p className="truncate font-mono text-xs text-workshop-muted">
           <span className="mr-2 font-bold uppercase tracking-wider text-workshop-primary">
-            commentary
+            {label}
           </span>
           {line}
         </p>
