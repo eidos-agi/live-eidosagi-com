@@ -218,12 +218,16 @@ export async function buildLeaderboard(): Promise<LeaderboardRow[]> {
       gpuType: null,
       costPerHour: null,
     };
-    const meanTok = b.tokN > 0 ? b.tokSum / b.tokN : 0;
-    const meanComp = b.compN > 0 ? b.compSum / b.compN : 0;
+    const meanTokRaw = b.tokN > 0 ? b.tokSum / b.tokN : 0;
+    const meanCompRaw = b.compN > 0 ? b.compSum / b.compN : 0;
+    const meanTok = Math.round(meanTokRaw * 10) / 10;         // 1 decimal
+    const meanComp = Math.round(meanCompRaw * 10) / 10;        // 1 decimal
     let costPerMillion: number | null = null;
-    if (snap.costPerHour != null && meanTok > 0) {
-      const tokensPerHour = meanTok * 3600;
-      costPerMillion = (snap.costPerHour / tokensPerHour) * 1_000_000;
+    if (snap.costPerHour != null && meanTokRaw > 0) {
+      const tokensPerHour = meanTokRaw * 3600;
+      const raw = (snap.costPerHour / tokensPerHour) * 1_000_000;
+      // 2-decimal $/M tokens is plenty of precision for a leaderboard.
+      costPerMillion = Math.round(raw * 100) / 100;
     }
     rows.push({
       model,
