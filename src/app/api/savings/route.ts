@@ -27,15 +27,18 @@ export const dynamic = "force-dynamic";
 
 const WINDOW_HOURS = 24;
 
-// Actors whose events are authored by hosted Claude and therefore
-// incur a per-event cost.
-const HOSTED_ACTORS = new Set<string>(["claude"]);
+// Actors whose events are authored by a hosted LLM (currently Claude,
+// powering Eidos) and therefore incur a per-event cost. Both 'eidos' and
+// 'claude' map here — 'claude' is the historical name before the rename,
+// 'eidos' is the public-facing name going forward.
+const HOSTED_ACTORS = new Set<string>(["eidos", "claude"]);
 
 // Actors whose events are authored by local inference (A6000 ollama)
 // or by zero-cost system signals (webhooks, benchmark runners, etc.).
 // These count toward the denominator but contribute $0 to cost.
 const LOCAL_OR_FREE_ACTORS = new Set<string>([
   "local-llm",
+  "eidos-local",
   "qwen-coder",
   "benchmark",
   "github",

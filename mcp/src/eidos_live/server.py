@@ -43,7 +43,9 @@ def _session() -> str:
 
 
 def _default_actor() -> str:
-    return os.environ.get("EIDOS_DEFAULT_ACTOR", "claude")
+    # Public narrative: the agent is Eidos. Claude is the hosted LLM powering
+    # Eidos today; the narrative actor is Eidos throughout.
+    return os.environ.get("EIDOS_DEFAULT_ACTOR", "eidos")
 
 
 async def _post_ingest(kind: str, payload: dict[str, Any]) -> dict[str, Any]:

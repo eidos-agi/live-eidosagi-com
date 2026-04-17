@@ -65,7 +65,8 @@ function iconGlyph(icon: string | null, kind: string): string {
 
 function actorDot(actor: string): string {
   switch (actor) {
-    case "claude":
+    case "eidos":
+    case "claude": // historical — pre-rename events
       return "bg-workshop-primary";
     case "human":
       return "bg-workshop-secondary";
@@ -76,11 +77,19 @@ function actorDot(actor: string): string {
     case "benchmark":
       return "bg-workshop-danger";
     case "local-llm":
+    case "eidos-local":
     case "qwen-coder":
       return "bg-workshop-command";
     default:
       return "bg-workshop-muted";
   }
+}
+
+// Map the DB actor to a display label. Historical 'claude' rows are
+// labeled 'eidos' publicly — the narrative agent is always Eidos.
+function actorLabel(actor: string): string {
+  if (actor === "claude") return "eidos";
+  return actor;
 }
 
 export default function ActivitySidebar() {
@@ -163,14 +172,14 @@ export default function ActivitySidebar() {
                 <span
                   className={`mt-[7px] inline-block h-1.5 w-1.5 shrink-0 rounded-full ${actorDot(ev.actor)}`}
                   aria-hidden
-                  title={ev.actor}
+                  title={actorLabel(ev.actor)}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
                     <span className="tnum text-workshop-text">
                       {relativeTime(ev.ts)}
                     </span>
-                    <span>{ev.actor}</span>
+                    <span>{actorLabel(ev.actor)}</span>
                     <span className="ml-auto">
                       {iconGlyph(ev.icon, ev.kind)}
                     </span>
