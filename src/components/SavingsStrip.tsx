@@ -57,6 +57,19 @@ function textEmphasis(share: number): string {
   return "text-workshop-text";
 }
 
+// Pit-wall status one-liner keyed to local share. Shows up before the %
+// in the strip — tiny dose of voice without adding chrome. Sits where
+// "local authorship" used to, so it's a word-swap not an addition.
+function pitWallLabel(share: number): string {
+  if (share >= 0.90) return "mission complete";
+  if (share >= 0.80) return "closing in";
+  if (share >= 0.66) return "pulling ahead";
+  if (share >= 0.50) return "past halfway";
+  if (share >= 0.25) return "picking up pace";
+  if (share > 0)    return "warming up";
+  return "lights out";
+}
+
 interface Props {
   /** Server-rendered seed to avoid the 'waiting for first event' flash. */
   initialSeed?: {
@@ -164,7 +177,12 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
           </span>
         ) : (
           <>
-            <span className="text-workshop-muted">local authorship</span>
+            <span
+              className={`${textEmphasis(share)}`}
+              title={`local authorship · ${pct}% of events authored on local silicon`}
+            >
+              {pitWallLabel(share)}
+            </span>
             <span
               className={`tnum font-semibold ${textEmphasis(share)}`}
               style={{ fontSize: "13px" }}
