@@ -132,10 +132,12 @@ export default function ActivitySidebar() {
           </span>
         </div>
         <a
-          href="/activity"
+          href="/api/events?limit=200"
           className="font-mono text-[10px] uppercase tracking-wider text-workshop-muted transition hover:text-workshop-primary"
+          target="_blank"
+          rel="noopener"
         >
-          full log →
+          raw json →
         </a>
       </div>
 
