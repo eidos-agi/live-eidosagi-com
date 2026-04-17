@@ -5,7 +5,8 @@
 // no card chrome, refreshes every 3s via /api/events. On mobile, hidden —
 // a full /activity page exists for that.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ActivityIcon from "./ActivityIcon";
 
 interface ActivityEvent {
   id: number;
@@ -20,7 +21,9 @@ interface ActivityEvent {
 }
 
 const FALLBACK_REFRESH_MS = 8000; // used only if SSE can't connect
-const LIMIT = 80;
+const INITIAL_LIMIT = 80;
+const PAGE_SIZE = 60;
+const BUFFER_CAP = 1000; // in-memory ceiling; progressive reveal by scroll
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - Date.parse(iso);
@@ -157,8 +160,56 @@ export default function ActivitySidebar() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState<boolean>(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const qs = useMemo(() => `limit=${LIMIT}`, []);
+  const qs = useMemo(() => `limit=${INITIAL_LIMIT}`, []);
+
+  // Load older events (progressive reveal — triggered when user scrolls
+  // near the bottom of the feed).
+  const loadOlder = useCallback(async () => {
+    if (loadingMore || !hasMore || events.length === 0) return;
+    const oldestTs = events[events.length - 1]?.ts;
+    if (!oldestTs) return;
+    setLoadingMore(true);
+    try {
+      const before = Date.parse(oldestTs);
+      const res = await fetch(
+        `/api/events?limit=${PAGE_SIZE}&before=${before}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error(`${res.status}`);
+      const data = (await res.json()) as { events: ActivityEvent[] };
+      const older = data.events ?? [];
+      if (older.length === 0) {
+        setHasMore(false);
+      } else {
+        setEvents((prev) => {
+          const seen = new Set(prev.map((e) => e.id));
+          const appended = older.filter((e) => !seen.has(e.id));
+          if (appended.length === 0) {
+            setHasMore(false);
+            return prev;
+          }
+          return [...prev, ...appended].slice(0, BUFFER_CAP);
+        });
+      }
+    } catch {
+      // ignore — user can try again next scroll
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [events, hasMore, loadingMore]);
+
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // trigger when within 200px of the bottom
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+      void loadOlder();
+    }
+  }, [loadOlder]);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +262,7 @@ export default function ActivitySidebar() {
             setEvents((prev) => {
               // Dedupe by id; prepend (list is reverse-chron newest-first).
               if (prev.some((e) => e.id === incoming.id)) return prev;
-              return [incoming, ...prev].slice(0, LIMIT);
+              return [incoming, ...prev].slice(0, BUFFER_CAP);
             });
           }
         } catch {
@@ -267,8 +318,10 @@ export default function ActivitySidebar() {
         </a>
       </div>
 
-      {/* Events — tight list, no card chrome */}
+      {/* Events — tight list, progressive-reveal on scroll */}
       <div
+        ref={scrollRef}
+        onScroll={onScroll}
         className="flex-1 overflow-y-auto"
         style={{ overscrollBehavior: "contain" }}
       >
@@ -312,6 +365,16 @@ export default function ActivitySidebar() {
                 </li>
               );
             })}
+            {/* Progressive-reveal footer */}
+            {events.length > 0 && (
+              <li className="px-3 py-4 text-center font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+                {loadingMore
+                  ? "loading older…"
+                  : hasMore
+                  ? "scroll for more"
+                  : `end of log · ${events.length} events`}
+              </li>
+            )}
           </ul>
         )}
       </div>

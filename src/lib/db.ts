@@ -221,22 +221,51 @@ export function insertEvent(
 export interface ListEventsOpts {
   limit?: number;
   sessionId?: string | null;
+  /** epoch ms cursor — return events strictly older than this timestamp. */
+  beforeTs?: number | null;
 }
 
 export function listEvents(opts: ListEventsOpts = {}): ActivityEvent[] {
   const db = getDb();
   const limit = Math.max(1, Math.min(500, opts.limit ?? 50));
+  const before =
+    opts.beforeTs != null && Number.isFinite(opts.beforeTs)
+      ? opts.beforeTs
+      : null;
 
   if (opts.sessionId) {
+    const rows = before
+      ? (db
+          .prepare(
+            `SELECT id, ts, session_id, actor, kind, summary, details, icon, related_run
+             FROM events
+             WHERE deleted_at IS NULL AND session_id = ? AND ts < ?
+             ORDER BY ts DESC
+             LIMIT ?`,
+          )
+          .all(opts.sessionId, before, limit) as EventRow[])
+      : (db
+          .prepare(
+            `SELECT id, ts, session_id, actor, kind, summary, details, icon, related_run
+             FROM events
+             WHERE deleted_at IS NULL AND session_id = ?
+             ORDER BY ts DESC
+             LIMIT ?`,
+          )
+          .all(opts.sessionId, limit) as EventRow[]);
+    return rows.map(rowToEvent);
+  }
+
+  if (before) {
     const rows = db
       .prepare(
         `SELECT id, ts, session_id, actor, kind, summary, details, icon, related_run
          FROM events
-         WHERE deleted_at IS NULL AND session_id = ?
+         WHERE deleted_at IS NULL AND ts < ?
          ORDER BY ts DESC
          LIMIT ?`,
       )
-      .all(opts.sessionId, limit) as EventRow[];
+      .all(before, limit) as EventRow[];
     return rows.map(rowToEvent);
   }
 
