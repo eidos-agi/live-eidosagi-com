@@ -135,7 +135,7 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
 
   return (
     <div
-      className="relative border-b border-workshop-primary/15 bg-[var(--color-surface)]/80 backdrop-blur"
+      className="border-b border-workshop-primary/15 bg-[var(--color-surface)]/80 backdrop-blur"
       role="status"
       aria-live="polite"
       aria-label={
@@ -144,18 +144,67 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
           : `Mission progress: local AI wrote ${pct}% of today's events, saving ${formatUsd(saved)}`
       }
     >
-      {/* The bar itself */}
-      <div className="relative h-[36px] overflow-hidden">
-        {/* Base track */}
-        <div className="absolute inset-0 bg-[var(--color-bg)]/40" />
+      {/* Text row — always on surface bg, no contrast collision with the fill */}
+      <div className="mx-auto flex h-[28px] max-w-7xl items-center gap-3 px-6 font-mono text-[11px] uppercase tracking-wider">
+        <span
+          aria-hidden
+          className={`inline-block transition-[filter,opacity] duration-300 ${
+            pulse
+              ? "opacity-100 [filter:drop-shadow(0_0_10px_rgba(196,147,90,0.95))]"
+              : "opacity-80"
+          }`}
+          style={{ fontSize: "13px", lineHeight: 1, color: "var(--color-primary)" }}
+        >
+          ◆
+        </span>
 
-        {/* Filled portion */}
+        {empty ? (
+          <span className="text-workshop-muted">
+            mission: 90% local authorship — waiting for first event
+          </span>
+        ) : (
+          <>
+            <span className="text-workshop-muted">local authorship</span>
+            <span
+              className={`tnum font-semibold ${textEmphasis(share)}`}
+              style={{ fontSize: "13px" }}
+            >
+              {pct}%
+            </span>
+            <span className="hidden text-workshop-muted sm:inline">
+              · goal 90%
+            </span>
+            <span className="text-workshop-muted" aria-hidden>
+              ·
+            </span>
+            <span className="tnum text-workshop-command">
+              {formatUsd(saved)}
+            </span>
+            <span className="text-workshop-muted">saved</span>
+            <span className="hidden text-workshop-muted sm:inline" aria-hidden>
+              ·
+            </span>
+            <span className="hidden tnum text-workshop-muted sm:inline">
+              {local} local / {hosted} hosted
+            </span>
+          </>
+        )}
+
+        <a
+          href="/methodology#savings"
+          className="ml-auto text-workshop-muted transition hover:text-workshop-primary"
+        >
+          how?
+        </a>
+      </div>
+
+      {/* Bar row — pure graphic, no overlaid text. Thin and tasteful. */}
+      <div className="relative h-[8px] overflow-hidden bg-[var(--color-bg)]/50">
         <div
           className={`absolute inset-y-0 left-0 transition-[width,background-color] duration-700 ease-out ${fillColor(share)}`}
           style={{ width: fillWidth }}
         />
-
-        {/* Goal tick at 90% */}
+        {/* Goal tick at 90% — full-height vertical line on the bar */}
         <div
           className="pointer-events-none absolute inset-y-0 flex flex-col items-center"
           style={{ left: `${GOAL_PCT}%` }}
@@ -165,63 +214,9 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
             className={`h-full w-px border-l border-dashed transition-colors ${
               share >= GOAL_PCT / 100
                 ? "border-workshop-command/90"
-                : "border-workshop-primary/50"
+                : "border-workshop-primary/60"
             }`}
           />
-        </div>
-
-        {/* Overlaid content (two rows: headline + fine print) */}
-        <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center gap-3 px-6 font-mono text-[11px] uppercase tracking-wider">
-          <span
-            aria-hidden
-            className={`inline-block transition-[filter,opacity] duration-300 ${
-              pulse
-                ? "opacity-100 [filter:drop-shadow(0_0_10px_rgba(196,147,90,0.95))]"
-                : "opacity-80"
-            }`}
-            style={{ fontSize: "13px", lineHeight: 1 }}
-          >
-            ◆
-          </span>
-
-          {empty ? (
-            <span className="text-workshop-muted">
-              mission: 90% local authorship — waiting for first event
-            </span>
-          ) : (
-            <>
-              <span className="text-workshop-muted">local authorship</span>
-              <span
-                className={`tnum font-semibold ${textEmphasis(share)}`}
-                style={{ fontSize: "13px" }}
-              >
-                {pct}%
-              </span>
-              <span className="hidden text-workshop-muted sm:inline">
-                · goal 90%
-              </span>
-              <span className="text-workshop-muted" aria-hidden>
-                ·
-              </span>
-              <span className="tnum text-workshop-command">
-                {formatUsd(saved)}
-              </span>
-              <span className="text-workshop-muted">saved</span>
-              <span className="hidden text-workshop-muted sm:inline" aria-hidden>
-                ·
-              </span>
-              <span className="hidden tnum text-workshop-muted sm:inline">
-                {local} local / {hosted} hosted
-              </span>
-            </>
-          )}
-
-          <a
-            href="/methodology#savings"
-            className="ml-auto text-workshop-muted transition hover:text-workshop-primary"
-          >
-            how?
-          </a>
         </div>
       </div>
 
