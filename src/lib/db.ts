@@ -816,3 +816,184 @@ export function insertArtifact(input: InsertArtifactInput): Artifact {
     .get(Number(info.lastInsertRowid)) as ArtifactRow;
   return rowToArtifact(row);
 }
+
+// ---------------------------------------------------------------------------
+// Human tasks — things the agent needs from the human (URLs, approvals,
+// passwords, decisions). Posted via /api/ingest kind='human_task'.
+// ---------------------------------------------------------------------------
+
+export type HumanTaskStatus = "open" | "done" | "wontdo" | "blocked";
+export type HumanTaskPriority = "low" | "normal" | "high" | "urgent";
+
+export interface HumanTask {
+  id: number;
+  ts: string;
+  sessionId: string;
+  title: string;
+  details: Record<string, unknown>;
+  status: HumanTaskStatus;
+  priority: HumanTaskPriority;
+  url: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+}
+
+interface HumanTaskRow {
+  id: number;
+  ts: number;
+  session_id: string;
+  title: string;
+  details: string;
+  status: HumanTaskStatus;
+  priority: HumanTaskPriority;
+  url: string | null;
+  resolved_at: number | null;
+  resolved_by: string | null;
+}
+
+function rowToHumanTask(row: HumanTaskRow): HumanTask {
+  let details: Record<string, unknown> = {};
+  try {
+    details = row.details ? JSON.parse(row.details) : {};
+  } catch {
+    details = {};
+  }
+  return {
+    id: row.id,
+    ts: new Date(row.ts).toISOString(),
+    sessionId: row.session_id,
+    title: row.title,
+    details,
+    status: row.status,
+    priority: row.priority,
+    url: row.url,
+    resolvedAt: row.resolved_at ? new Date(row.resolved_at).toISOString() : null,
+    resolvedBy: row.resolved_by,
+  };
+}
+
+export interface InsertHumanTaskInput {
+  sessionId: string;
+  title: string;
+  details?: Record<string, unknown>;
+  priority?: HumanTaskPriority;
+  url?: string | null;
+  ts?: number | string | Date;
+}
+
+export function insertHumanTask(input: InsertHumanTaskInput): HumanTask {
+  const db = getDb();
+  const ts = toMillis(input.ts);
+  const info = db
+    .prepare(
+      `INSERT INTO human_tasks (ts, session_id, title, details, status, priority, url)
+       VALUES (@ts, @session_id, @title, @details, 'open', @priority, @url)`,
+    )
+    .run({
+      ts,
+      session_id: input.sessionId,
+      title: input.title,
+      details: JSON.stringify(input.details ?? {}),
+      priority: input.priority ?? "normal",
+      url: input.url ?? null,
+    });
+  const row = db
+    .prepare(
+      `SELECT id, ts, session_id, title, details, status, priority, url,
+              resolved_at, resolved_by
+         FROM human_tasks WHERE id = ?`,
+    )
+    .get(Number(info.lastInsertRowid)) as HumanTaskRow;
+  const task = rowToHumanTask(row);
+  // Also emit an event so visitors see that a human task was filed.
+  insertEvent({
+    sessionId: input.sessionId,
+    actor: "eidos",
+    kind: "action",
+    summary: `new human task: ${input.title}`,
+    icon: "warn",
+    details: { human_task_id: task.id, priority: task.priority },
+  });
+  return task;
+}
+
+export function listHumanTasks(opts: {
+  status?: HumanTaskStatus | "all";
+  limit?: number;
+} = {}): HumanTask[] {
+  const db = getDb();
+  const limit = Math.max(1, Math.min(500, opts.limit ?? 100));
+  const status = opts.status ?? "open";
+  if (status === "all") {
+    const rows = db
+      .prepare(
+        `SELECT id, ts, session_id, title, details, status, priority, url,
+                resolved_at, resolved_by
+           FROM human_tasks
+          WHERE deleted_at IS NULL
+          ORDER BY ts DESC
+          LIMIT ?`,
+      )
+      .all(limit) as HumanTaskRow[];
+    return rows.map(rowToHumanTask);
+  }
+  const rows = db
+    .prepare(
+      `SELECT id, ts, session_id, title, details, status, priority, url,
+              resolved_at, resolved_by
+         FROM human_tasks
+        WHERE deleted_at IS NULL AND status = ?
+        ORDER BY ts DESC
+        LIMIT ?`,
+    )
+    .all(status, limit) as HumanTaskRow[];
+  return rows.map(rowToHumanTask);
+}
+
+export function resolveHumanTask(
+  id: number,
+  status: HumanTaskStatus,
+  resolvedBy: string | null = "human",
+): HumanTask | null {
+  if (status === "open") return null;
+  const db = getDb();
+  const resolvedAt = Date.now();
+  db.prepare(
+    `UPDATE human_tasks
+        SET status = ?, resolved_at = ?, resolved_by = ?
+      WHERE id = ? AND deleted_at IS NULL`,
+  ).run(status, resolvedAt, resolvedBy, id);
+  const row = db
+    .prepare(
+      `SELECT id, ts, session_id, title, details, status, priority, url,
+              resolved_at, resolved_by
+         FROM human_tasks WHERE id = ?`,
+    )
+    .get(id) as HumanTaskRow | undefined;
+  if (!row) return null;
+  const task = rowToHumanTask(row);
+  insertEvent({
+    sessionId: task.sessionId,
+    actor: "human",
+    kind: "milestone",
+    summary: `human task resolved (${status}): ${task.title}`,
+    icon: status === "done" ? "check" : "warn",
+    details: { human_task_id: task.id, status, resolved_by: resolvedBy },
+  });
+  return task;
+}
+
+export function humanTaskCounts(): { open: number; done: number; wontdo: number; blocked: number } {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT status, COUNT(*) AS c
+         FROM human_tasks
+        WHERE deleted_at IS NULL
+        GROUP BY status`,
+    )
+    .all() as Array<{ status: HumanTaskStatus; c: number }>;
+  const out = { open: 0, done: 0, wontdo: 0, blocked: 0 };
+  for (const r of rows) out[r.status] = Number(r.c);
+  return out;
+}

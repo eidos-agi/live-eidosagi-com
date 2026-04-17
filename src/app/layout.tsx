@@ -127,6 +127,12 @@ export default function RootLayout({
               methodology
             </Link>
             <Link
+              href="/human-tasks"
+              className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
+            >
+              human tasks
+            </Link>
+            <Link
               href="/about"
               className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
             >

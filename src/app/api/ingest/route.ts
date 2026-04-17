@@ -20,12 +20,14 @@ import { NextResponse } from "next/server";
 import {
   insertArtifact,
   insertEvent,
+  insertHumanTask,
   insertProgress,
   insertRepoActivity,
   insertScore,
   updateRunEnd,
   upsertRunStart,
   type GpuConfig,
+  type HumanTaskPriority,
 } from "@/lib/db";
 import {
   appendProgress,
@@ -222,6 +224,23 @@ export async function POST(req: Request): Promise<NextResponse> {
             ts: payload.ts as number | string | undefined,
           });
           return NextResponse.json({ ok: true, id: row.id, kind });
+        }
+
+        case "human_task": {
+          const title = String(payload.title ?? "").trim();
+          if (!title) return badRequest("human_task.title required");
+          const priority = (
+            (payload.priority as string | undefined) ?? "normal"
+          ).toLowerCase() as HumanTaskPriority;
+          const task = insertHumanTask({
+            sessionId: String(payload.sessionId ?? "ambient"),
+            title,
+            details: asObj(payload.details) ?? {},
+            priority,
+            url: (payload.url as string | null | undefined) ?? null,
+            ts: payload.ts as number | string | undefined,
+          });
+          return NextResponse.json({ ok: true, id: task.id, kind });
         }
 
         default:

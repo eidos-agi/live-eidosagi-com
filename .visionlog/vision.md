@@ -6,30 +6,28 @@ date: "2026-04-17"
 
 **One sentence**: live.eidosagi.com is the clearest living demonstration on the internet that local AI is already here, already cheap, and already yours.
 
-**What visitors see in the first five seconds.**
-A three-lane race. Three GPUs generating tokens from the same prompt, right now. A live tokens-per-second counter. A live dollars-per-million-tokens counter. A sidebar of commits, PRs, benchmark scores streaming in as they happen. A chat of strangers watching the same fire.
+**The Friday 2026-04-17 live event**: Eidos is moving itself to 90%-cheaper silicon without losing intelligence, in public, with a LinkedIn audience watching at https://www.linkedin.com/feed/update/urn:li:activity:7450954697034608641/. Every minute of dead air is a bounced viewer.
 
-**The claim the page earns.**
-- Local models aren't coming. They're here, running on silicon you can rent for cents.
-- The expensive hourly rate is the cheap per-token rate (the H100 finding — $5/M vs $22/M at 1/3 the hourly).
-- Closed-model incumbency is margin, not capability.
-- An AI agent built this page and is still building it in public. You can watch that too.
+**What visitors see in the first five seconds**: three-lane GPU race, live tok/s counter, live $/M-tok, SavingsStrip counting the local-AI share climbing from 0% toward 100%, ActivitySidebar streaming agent events (SSE), ChatSidebar with strangers watching the same fire.
 
-**The three layers of the product.**
-1. *The race* — real benchmarks streaming. (project)
-2. *The build* — commits, PRs, subagents, deploys all narrated. (meta — the site shows itself.)
-3. *The argument* — research pages, methodology, downloads, embed.js, narrative posts. (meta-meta — once earned, the story compounds.)
+**The three layers**:
+1. *The race* — real benchmarks streaming (A6000/A100/H100). (project)
+2. *The build* — commits, PRs, subagents, deploys, decisions, blockers. (meta — the site shows itself being built.)
+3. *The argument* — /methodology, /about, /models, raw-data downloads, embed.js, per-run narrative posts. (meta-meta — once earned, the story compounds.)
 
-**The voice.** Grounded, slightly poetic, always specific. Never "revolutionary." Never exclamation points. Never AI-generated cadence. Numbers are the headline.
+**Phase 4 — the self-cheapening loop (Eidos solves it in-session, no playbook)**:
+Migrate event narration from hosted Claude → local A6000 llama. Then delegate implementation to qwen2.5-coder on the same silicon. Claude stays the architect; the local model is the narrator and the hand. The SavingsStrip is the visible proof.
 
-**What the site must be when it's done.**
-1. **Beautiful** — the eidosagi.com workshop palette, Space Grotesk, JetBrains Mono tabular numerics, grain overlay, amber ember glow on live numbers. No Grafana tropes.
-2. **Living** — the race is running, the feed is moving, the chat is populated. Silence is not acceptable; if no benchmark is running, show the next-scheduled one with a countdown plus the last-completed one as rotating backdrop.
-3. **Interactive** — /compare, /models leaderboard, /runs/[id] replay, chat, per-run share cards, embed.js, raw-data JSON + CSV downloads, RSS on schedule.
-4. **Competent** — `/methodology` page proves we know what we're doing. `pal:secaudit` + `pal:codereview` pass. Lighthouse ≥ 95 performance, ≥ 95 accessibility. OG + favicons + manifest are right.
-5. **LIVE** — SSE streams, not polling where avoidable. NOW/IDLE strip always present. Viewer count honest.
-6. **Properly logged** — every page view, every ingest call, every benchmark row, every commit, every chat message is a row in events / progress / scores / chat_messages. Claude-agent actions stream in via the in-tree MCP. All traceable to a session_id.
-7. **Properly cached** — Next.js ISR or `revalidate` on static-ish pages (/methodology, /about, /models leaderboard snapshots), `cache-control: no-store` on /api/events + /api/chat, Cloudflare edge cache on static assets.
-8. **Properly researched** — `/research/why-local-matters` page backed by real research.md findings with evidence grades, citations, disconfirmation. Every big claim links to a source.
+**Voice**: grounded, slightly poetic, always specific. Numbers are the headlines. No exclamation points, no emojis, no AI-cadence tells.
 
-**Done looks like.** A stranger lands on the site cold, watches for 30 seconds, forwards the URL to three people with one line: *"AI is running right now in public and it's cheaper than you think."*
+**Must-be-when-done**:
+- Beautiful (workshop palette, Space Grotesk, JetBrains Mono, grain, ember glow, both dark and paper themes)
+- Living (SSE streams, chat populated, never dead air)
+- Interactive (/compare, /models, /runs/[id], share cards, embed.js, RSS)
+- Competent (methodology page, pal:secaudit + pal:codereview pass, Lighthouse ≥ 95)
+- LIVE (SSE not polling where avoidable; status strip always present)
+- Properly logged (every action is an event row; session_id traceable)
+- Properly cached (ISR on static-ish pages, no-store on APIs, Cloudflare edge for assets)
+- Properly researched (/research/* pages backed by research.md findings with evidence grades + citations)
+
+**Done looks like** a stranger who lands cold for 30 seconds forwards the URL with one line: *"AI is running right now in public and it's cheaper than you think."*
