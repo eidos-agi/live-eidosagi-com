@@ -1,4 +1,6 @@
+import DashboardGrid from "@/components/DashboardGrid";
 import HeadlineCard from "@/components/HeadlineCard";
+import MissionRoadmap from "@/components/MissionRoadmap";
 import RaceBoard from "@/components/RaceBoard";
 import { listRuns as listRunsDb } from "@/lib/db";
 import type { GpuConfig as TypesGpu } from "@/lib/types";
@@ -61,6 +63,8 @@ export default async function HomePage() {
   return (
     <div className="space-y-6">
       <HeadlineCard />
+      <DashboardGrid />
+      <MissionRoadmap />
       <section>
         <h1 className="font-heading text-3xl font-bold text-workshop-text">
           Three-Lane GPU Race
