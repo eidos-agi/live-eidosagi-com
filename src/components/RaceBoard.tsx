@@ -62,7 +62,9 @@ export default function RaceBoard({ runId, lanes }: Props) {
       <div className="flex items-center gap-2 font-mono text-xs text-workshop-muted">
         <span
           className={`inline-block h-2 w-2 rounded-full ${
-            connected ? "bg-workshop-command" : "bg-workshop-muted"
+            connected
+              ? "bg-workshop-command shadow-[0_0_8px_rgba(184,196,160,0.6)] animate-pulse"
+              : "bg-workshop-muted"
           }`}
         />
         {runId

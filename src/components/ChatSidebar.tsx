@@ -315,7 +315,7 @@ export default function ChatSidebar() {
           className={[
             "inline-block h-2 w-2 rounded-full",
             connected
-              ? "bg-workshop-command shadow-[0_0_8px_rgba(184,196,160,0.6)]"
+              ? "bg-workshop-command shadow-[0_0_8px_rgba(184,196,160,0.6)] animate-pulse"
               : "bg-workshop-muted",
           ].join(" ")}
           aria-hidden

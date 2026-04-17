@@ -298,7 +298,9 @@ export default function ActivitySidebar() {
       <div className="flex items-center justify-between border-b border-workshop-primary/15 bg-gradient-to-b from-[var(--color-surface)] to-[var(--color-surface)]/80 px-4 py-3">
         <div className="flex items-center gap-2">
           <span
-            className="inline-block h-2 w-2 rounded-full bg-workshop-primary shadow-[0_0_8px_rgba(196,147,90,0.6)]"
+            className={`inline-block h-2 w-2 rounded-full bg-workshop-primary shadow-[0_0_8px_rgba(196,147,90,0.6)] ${
+              live ? "animate-pulse" : ""
+            }`}
             aria-hidden
           />
           <span className="font-heading text-sm font-semibold text-workshop-text">
