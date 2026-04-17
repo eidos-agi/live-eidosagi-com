@@ -35,7 +35,11 @@ INGEST_TOKEN = os.environ.get("INGEST_TOKEN", "")
 TICK_SECONDS = int(os.environ.get("RACER_TICK_SECONDS", "90"))
 MODELS = [
     m.strip()
-    for m in os.environ.get("RACER_MODELS", "llama3.1:8b").split(",")
+    for m in os.environ.get(
+        "RACER_MODELS",
+        # Rotation — small to large. Only GPUs that have the model race that tick.
+        "llama3.2:1b,qwen2.5:1.5b,llama3.1:8b,qwen2.5:14b,qwen2.5:32b,qwen3:30b,llama3.3:70b,qwen2.5:72b",
+    ).split(",")
     if m.strip()
 ]
 NUM_PREDICT = int(os.environ.get("RACER_NUM_PREDICT", "120"))
@@ -68,6 +72,32 @@ def ingest(kind: str, payload: dict) -> dict:
         return {"ok": False, "status": e.code}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e)}
+
+
+async def has_model(row: tuple, model: str) -> bool:
+    """Check whether a GPU has a given model loaded locally (quick ollama list)."""
+    label, port, keyfile, ip, *_ = row
+    key = KEY_DIR / keyfile
+    cmd = [
+        "ssh",
+        "-o", "BatchMode=yes",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "ConnectTimeout=5",
+        "-p", port,
+        "-i", str(key),
+        f"ubuntu@{ip}",
+        f"ollama list 2>/dev/null | awk '{{print $1}}' | grep -Fx '{model}' >/dev/null && echo yes || echo no",
+    ]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+        return out.decode().strip() == "yes"
+    except Exception:  # noqa: BLE001
+        return False
 
 
 async def race_one_gpu(row: tuple, model: str) -> dict:
@@ -150,6 +180,16 @@ async def one_race() -> None:
     started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     log(f"race: model={model} run_id={run_id}")
 
+    # Only include GPUs that have this model loaded — avoids stuck pulls.
+    availability = await asyncio.gather(
+        *[has_model(r, model) for r in GPUS]
+    )
+    active = [r for r, ok in zip(GPUS, availability) if ok]
+    if not active:
+        log(f"  skipped: no GPU has {model} loaded")
+        return
+    log(f"  active lanes: {', '.join(r[0] for r in active)}")
+
     ingest("run_start", {
         "runId": run_id,
         "sessionId": "live-racer",
@@ -161,15 +201,15 @@ async def one_race() -> None:
                 "vramGB": r[5],
                 "costPerHour": r[6],
             }
-            for r in GPUS
+            for r in active
         ],
         "models": [model],
         "startedAt": started_at,
-        "note": "live-racer · one prompt, three GPUs, in parallel",
+        "note": "live-racer · one prompt, lanes that have this model, in parallel",
     })
 
     results = await asyncio.gather(
-        *[race_one_gpu(r, model) for r in GPUS]
+        *[race_one_gpu(r, model) for r in active]
     )
 
     for r in results:
