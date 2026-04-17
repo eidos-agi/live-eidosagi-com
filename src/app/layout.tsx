@@ -100,12 +100,6 @@ export default function RootLayout({
               race
             </Link>
             <Link
-              href="/activity"
-              className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
-            >
-              activity
-            </Link>
-            <Link
               href="/runs"
               className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
             >
