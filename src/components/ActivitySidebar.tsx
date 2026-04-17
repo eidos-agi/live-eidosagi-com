@@ -92,6 +92,18 @@ function actorLabel(actor: string): string {
   return actor;
 }
 
+// Historical narrator rows contain literal markdown (llama3 likes `**bold**`).
+// Strip it at render time so the sidebar looks clean even for pre-fix rows.
+function cleanSummary(s: string): string {
+  if (!s) return "";
+  let out = s;
+  out = out.replace(/\*{1,3}([^*]+?)\*{1,3}/g, "$1");
+  out = out.replace(/_{1,3}([^_]+?)_{1,3}/g, "$1");
+  out = out.replace(/`([^`]+)`/g, "$1");
+  out = out.replace(/^\s*[\-*\u2022>#]+\s*/, "");
+  return out.trim();
+}
+
 export default function ActivitySidebar() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -244,7 +256,7 @@ export default function ActivitySidebar() {
                     </span>
                   </div>
                   <div className="mt-0.5 break-words text-[12px] leading-snug text-workshop-text">
-                    {ev.summary}
+                    {cleanSummary(ev.summary)}
                   </div>
                 </div>
               </li>
