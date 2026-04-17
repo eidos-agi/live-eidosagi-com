@@ -1,0 +1,67 @@
+name: Deploy to Railway
+
+# Railway's GitHub auto-deploy stopped firing; PRs merge to main but the
+# live site keeps running the older build. This workflow is an explicit
+# replacement — it runs on every push to main, builds, and uses the
+# Railway CLI to deploy.
+#
+# Required secret: RAILWAY_TOKEN  (Railway → Account → Tokens)
+# Optional var:    RAILWAY_SERVICE (defaults to 'live-eidosagi-com')
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'next.config.*'
+      - 'tsconfig.json'
+      - 'tailwind.config.*'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || 'live-eidosagi-com' }}
+      RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_ENVIRONMENT || 'production' }}
+    steps:
+      - name: Check RAILWAY_TOKEN is set
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN secret is not set. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck + build (verify before ship)
+        run: pnpm build
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@latest
+
+      - name: Deploy
+        run: |
+          echo "Deploying $RAILWAY_SERVICE -> $RAILWAY_ENVIRONMENT"
+          railway up --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENVIRONMENT" --detach
