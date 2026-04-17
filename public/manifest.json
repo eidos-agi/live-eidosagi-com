@@ -1,0 +1,22 @@
+{
+  "name": "Crucible — live.eidosagi.com",
+  "short_name": "Crucible",
+  "description": "Live public benchmark: three GPUs race the same language model in real time.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#161210",
+  "theme_color": "#161210",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

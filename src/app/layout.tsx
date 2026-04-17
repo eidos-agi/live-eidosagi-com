@@ -1,24 +1,66 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://live.eidosagi.com";
 
+const DESCRIPTION =
+  "Live public benchmark: three GPUs race the same language model in real time.";
+
 export const metadata: Metadata = {
-  title: "Eidos Live — GPU Benchmark Race",
-  description:
-    "Real-time LLM benchmark runs streaming across three Thunder Compute GPU instances.",
   metadataBase: new URL(SITE_URL),
-  openGraph: {
-    title: "Eidos Live — GPU Benchmark Race",
-    description:
-      "Three-lane GPU race: A6000 vs A100 vs H100, live tokens-per-second.",
-    url: SITE_URL,
-    siteName: "live.eidosagi.com",
-    images: ["/og.png"],
-    type: "website",
+  title: {
+    default: "Crucible — live.eidosagi.com",
+    template: "%s · Crucible",
   },
+  description: DESCRIPTION,
+  applicationName: "Crucible by Eidos AGI",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    title: "Crucible — live.eidosagi.com",
+    description: DESCRIPTION,
+    siteName: "Crucible by Eidos AGI",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Crucible — We put models in the fire.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Crucible — live.eidosagi.com",
+    description: DESCRIPTION,
+    images: ["/og.png"],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#161210",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -71,6 +113,24 @@ export default function RootLayout({
               className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
             >
               compare
+            </Link>
+            <Link
+              href="/models"
+              className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
+            >
+              models
+            </Link>
+            <Link
+              href="/methodology"
+              className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
+            >
+              methodology
+            </Link>
+            <Link
+              href="/about"
+              className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
+            >
+              about
             </Link>
             <span className="ml-auto font-mono text-xs text-workshop-muted">
               live.eidosagi.com
