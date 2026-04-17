@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
+import ChatSidebar from "@/components/ChatSidebar";
+import LinksFooter from "@/components/LinksFooter";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://live.eidosagi.com";
@@ -81,7 +83,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen font-sans antialiased">
+      <body className="min-h-screen font-sans antialiased lg:pr-[320px]">
         <header className="border-b border-workshop-muted/20 bg-workshop-surface/60 backdrop-blur">
           <nav className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4 text-sm">
             <Link
@@ -138,9 +140,8 @@ export default function RootLayout({
           </nav>
         </header>
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
-        <footer className="mx-auto max-w-7xl px-6 py-8 font-mono text-xs text-workshop-muted">
-          Eidos AGI · three-lane GPU race · workshop mode
-        </footer>
+        <LinksFooter />
+        <ChatSidebar />
       </body>
     </html>
   );
