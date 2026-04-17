@@ -111,6 +111,40 @@ export async function POST(req: Request): Promise<NextResponse> {
           const evKind = String(payload.kind ?? "observation");
           const summary = String(payload.summary ?? "").trim();
           if (!summary) return badRequest("event.summary required");
+
+          // Quality gate — kill narrator-drift before it reaches the
+          // public feed. The local narrator was producing:
+          //   - LinkedIn-cadence prose ("surpasses", "achieves X billion")
+          //   - Literal markdown detritus ("**SSE Frame...**")
+          //   - Arithmetic hallucinations ("8 billion tokens in 195s")
+          //   - Near-duplicate headlines on consecutive races
+          // Until the H100 harness is live, actor='eidos-local' posts are
+          // silenced — the savings counter still counts them (they're in
+          // by_actor) but they don't spam the feed.
+          if (actor === "eidos-local" && evKind !== "milestone") {
+            return NextResponse.json({
+              ok: true,
+              id: 0,
+              kind,
+              suppressed: "narrator-quality-gate",
+            });
+          }
+
+          // Filter probe events from the public feed — session='probe' or
+          // summary literally starting with 'probe'. They're useful for
+          // smoke tests but pollute the narrative.
+          if (
+            sessionId === "probe" ||
+            /^probe\b/i.test(summary)
+          ) {
+            return NextResponse.json({
+              ok: true,
+              id: 0,
+              kind,
+              suppressed: "probe",
+            });
+          }
+
           const { id } = insertEvent({
             sessionId,
             actor,

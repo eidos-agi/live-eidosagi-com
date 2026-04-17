@@ -437,6 +437,38 @@ OLLAMA_FLASH_ATTENTION=1`}
           refuse to measure, and what we&apos;re still unsure of.
         </p>
 
+        <aside className="rounded border border-workshop-primary/30 bg-workshop-surface/50 p-4 text-sm leading-relaxed text-workshop-text">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-workshop-primary">
+            caveat · measurement conditions
+          </div>
+          <p className="mt-2">
+            The numbers on the homepage and the leaderboard come from
+            GPUs <em>rented on Thunder Compute</em>, running Ollama
+            through a virtualization layer. They are measurements of a
+            rental tier, not a hardware ceiling.
+          </p>
+          <p className="mt-2">
+            Specifically — our{" "}
+            <span className="tnum text-workshop-command">H100 @ $2.49/hr</span> is
+            Thunder&apos;s production tier, running un-shared. Our{" "}
+            <span className="tnum text-workshop-muted">A100 @ $0.78/hr</span> and{" "}
+            <span className="tnum text-workshop-muted">A6000 @ $0.35/hr</span> are
+            the <em>prototyping</em> tier, which virtualizes the GPU and
+            shares it across tenants. We&apos;ve observed A100 at 13–15 tok/s
+            on llama3.1:8b in that harness — a large delta from the
+            native-hardware ceiling and mostly a story about cloud
+            plumbing, not silicon.
+          </p>
+          <p className="mt-2">
+            The <em>$/M-tokens</em> story survives that caveat — prototyping
+            tiers are what a small team can actually rent, so
+            &quot;cheapest hourly is most expensive per token&quot; is a
+            real user experience, not a theoretical one. The{" "}
+            <em>raw throughput comparison</em> does not; treat it as a
+            lower bound on what the silicon can do.
+          </p>
+        </aside>
+
         <h3 className="font-heading text-lg font-semibold text-workshop-text">
           Opinions we hold
         </h3>
