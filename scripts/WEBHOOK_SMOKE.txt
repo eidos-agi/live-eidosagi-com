@@ -1,0 +1,5 @@
+Webhook end-to-end smoke test.
+Created: 2026-04-17T19:56:50Z
+Purpose: first real push through the GitHub webhook -> /api/github-webhook
+         -> insertRepoActivity + insertEvent, visible in the activity feed.
+Delete this file once the feed shows the commit with icon='git-branch'.
