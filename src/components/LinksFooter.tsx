@@ -35,7 +35,7 @@ const LINKS: LinkDef[] = [
 
 export default function LinksFooter() {
   return (
-    <footer className="mx-auto mt-8 w-full max-w-7xl px-6 pb-10 pt-6 lg:pr-[352px]">
+    <footer className="mx-auto mt-8 w-full max-w-7xl px-6 pb-10 pt-6">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-workshop-muted/20 pt-4 font-mono text-[11px] text-workshop-muted">
         <a
           href="https://www.linkedin.com/in/danielshanklin/"
