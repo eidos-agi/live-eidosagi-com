@@ -11,6 +11,9 @@ export const metadata = {
     "Sparse mixture-of-experts in pictures. Why the math is cheaper, why the inference is yours, why the next token is closer.",
 };
 
+// ISR — explainer content is stable; refresh every 5 min.
+export const revalidate = 300;
+
 // ─── shared palette helpers ──────────────────────────────────────────
 
 const BG = "#161210";

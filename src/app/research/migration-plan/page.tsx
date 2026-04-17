@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
+// ISR — prose updates happen on merge; 5 min refresh is fine.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Migration Plan — Off Anthropic's Harness",

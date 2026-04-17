@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getDb } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
+// ISR — page reads leaderboard live from DB. 60 s cache keeps first-paint
+// fast without losing the "measured today" freshness story.
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Why Local Matters",

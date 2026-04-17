@@ -6,6 +6,9 @@ export const metadata = {
     "Decisions earned with evidence — why local matters, how Eidos is migrating off Anthropic, and a log written by the local model itself.",
 };
 
+// ISR — index content is hand-edited, refresh every 5 min.
+export const revalidate = 300;
+
 type Entry = {
   href: string;
   title: string;
