@@ -134,6 +134,12 @@ export default function RootLayout({
               migration plan
             </Link>
             <Link
+              href="/research/eidos-local-log"
+              className="font-mono text-xs uppercase tracking-wider text-workshop-command hover:text-workshop-primary"
+            >
+              local log
+            </Link>
+            <Link
               href="/methodology"
               className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
             >
