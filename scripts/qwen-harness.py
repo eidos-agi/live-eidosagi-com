@@ -70,14 +70,26 @@ def log_event(summary: str, kind: str = "action", icon: str | None = None, detai
 TOOLS = [
     {"type": "function", "function": {
         "name": "log_event",
-        "description": "Emit a line to the live activity feed at live.eidosagi.com. Use for narrating non-trivial progress.",
+        "description": "Emit a one-line headline to the activity feed. Under 150 chars.",
         "parameters": {
             "type": "object",
             "properties": {
-                "summary": {"type": "string", "description": "One-line headline, under 150 chars, grounded and specific."},
+                "summary": {"type": "string"},
                 "kind": {"type": "string", "enum": ["action", "observation", "milestone"], "default": "action"},
             },
             "required": ["summary"],
+        },
+    }},
+    {"type": "function", "function": {
+        "name": "emit_paragraph",
+        "description": "Author a multi-sentence paragraph (up to 1200 chars) that another agent will commit to the repo. Use when you need to write PROSE, not a headline. Returns the full content verbatim.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "slot": {"type": "string", "description": "Short label identifying what the paragraph is for (e.g. 'migration-progress-log')."},
+                "content": {"type": "string", "description": "The full paragraph, up to 1200 chars. Will be saved verbatim."},
+            },
+            "required": ["slot", "content"],
         },
     }},
     {"type": "function", "function": {
@@ -135,6 +147,17 @@ def exec_tool(name: str, args_json: str) -> str:
     if name == "log_event":
         log_event(args.get("summary", ""), args.get("kind", "action"))
         return "ok"
+    if name == "emit_paragraph":
+        slot = args.get("slot", "untitled").replace("/", "-")[:64]
+        content = args.get("content", "")[:1200]
+        path = Path("/tmp") / f"qwen-emit-{slot}.txt"
+        path.write_text(content)
+        log_event(
+            f"emit_paragraph · {slot} · {len(content)} chars",
+            kind="action",
+            details={"slot": slot, "path": str(path), "chars": len(content)},
+        )
+        return f"saved {len(content)} chars to {path}"
     if name == "fetch_url":
         url = args.get("url", "")
         if not url.startswith("https://live.eidosagi.com/"):
