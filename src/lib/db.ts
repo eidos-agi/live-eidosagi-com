@@ -281,6 +281,21 @@ export function listEvents(opts: ListEventsOpts = {}): ActivityEvent[] {
   return rows.map(rowToEvent);
 }
 
+/** Return the single most-recent event authored by `actor`, or null. */
+export function latestEventByActor(actor: string): ActivityEvent | null {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT id, ts, session_id, actor, kind, summary, details, icon, related_run
+       FROM events
+       WHERE deleted_at IS NULL AND actor = ?
+       ORDER BY ts DESC
+       LIMIT 1`,
+    )
+    .get(actor) as EventRow | undefined;
+  return row ? rowToEvent(row) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Runs
 // ---------------------------------------------------------------------------
