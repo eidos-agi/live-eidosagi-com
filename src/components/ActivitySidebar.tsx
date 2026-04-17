@@ -85,6 +85,55 @@ function actorDot(actor: string): string {
   }
 }
 
+// Text + border color for the icon chip — mirrors actorDot.
+function actorTone(actor: string): {
+  text: string;
+  border: string;
+  bg: string;
+} {
+  switch (actor) {
+    case "eidos":
+    case "claude":
+      return {
+        text: "text-workshop-primary",
+        border: "border-workshop-primary/40",
+        bg: "bg-workshop-primary/10",
+      };
+    case "human":
+      return {
+        text: "text-workshop-secondary",
+        border: "border-workshop-secondary/40",
+        bg: "bg-workshop-secondary/10",
+      };
+    case "github":
+      return {
+        text: "text-workshop-command",
+        border: "border-workshop-command/50",
+        bg: "bg-workshop-command/10",
+      };
+    case "benchmark":
+      return {
+        text: "text-workshop-danger",
+        border: "border-workshop-danger/40",
+        bg: "bg-workshop-danger/10",
+      };
+    case "local-llm":
+    case "eidos-local":
+    case "qwen-coder":
+      return {
+        text: "text-workshop-command",
+        border: "border-workshop-command/40",
+        bg: "bg-workshop-command/10",
+      };
+    default:
+      return {
+        text: "text-workshop-muted",
+        border: "border-workshop-muted/30",
+        bg: "bg-workshop-muted/5",
+      };
+  }
+}
+
 // Map the DB actor to a display label. Historical 'claude' rows are
 // labeled 'eidos' publicly — the narrative agent is always Eidos.
 function actorLabel(actor: string): string {
@@ -235,32 +284,34 @@ export default function ActivitySidebar() {
           </div>
         ) : (
           <ul className="divide-y divide-workshop-muted/10">
-            {events.map((ev) => (
-              <li
-                key={ev.id}
-                className="group flex items-start gap-2 px-3 py-2 transition-colors hover:bg-workshop-primary/5"
-              >
-                <span
-                  className={`mt-[7px] inline-block h-1.5 w-1.5 shrink-0 rounded-full ${actorDot(ev.actor)}`}
-                  aria-hidden
-                  title={actorLabel(ev.actor)}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
-                    <span className="tnum text-workshop-text">
-                      {relativeTime(ev.ts)}
-                    </span>
-                    <span>{actorLabel(ev.actor)}</span>
-                    <span className="ml-auto">
-                      {iconGlyph(ev.icon, ev.kind)}
-                    </span>
+            {events.map((ev) => {
+              const tone = actorTone(ev.actor);
+              return (
+                <li
+                  key={ev.id}
+                  className="group flex items-start gap-2.5 px-3 py-2 transition-colors hover:bg-workshop-primary/5"
+                >
+                  <span
+                    className={`mt-[2px] inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border ${tone.border} ${tone.bg} ${tone.text} font-mono text-[13px] leading-none`}
+                    aria-hidden
+                    title={`${actorLabel(ev.actor)} · ${ev.kind}`}
+                  >
+                    {iconGlyph(ev.icon, ev.kind)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-wider text-workshop-muted">
+                      <span className="tnum text-workshop-text">
+                        {relativeTime(ev.ts)}
+                      </span>
+                      <span>{actorLabel(ev.actor)}</span>
+                    </div>
+                    <div className="mt-0.5 break-words text-[12px] leading-snug text-workshop-text">
+                      {cleanSummary(ev.summary)}
+                    </div>
                   </div>
-                  <div className="mt-0.5 break-words text-[12px] leading-snug text-workshop-text">
-                    {cleanSummary(ev.summary)}
-                  </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
