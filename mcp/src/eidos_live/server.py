@@ -265,6 +265,44 @@ async def log_score(
 
 
 @mcp.tool()
+async def human_task(
+    title: str,
+    priority: str = "normal",
+    details: dict[str, Any] | None = None,
+    url: str | None = None,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    """File something the HUMAN needs to do — URL, approval, password, decision.
+
+    The task appears on live.eidosagi.com/human-tasks and the human resolves
+    it (done / wontdo / blocked) by clicking through.
+
+    Use this WHENEVER the agent hits a blocker only the human can clear.
+    Don't just log_event it — file a human_task so the human sees the
+    ask in one place.
+
+    Args:
+        title: one-line ask. Short. Imperative. ("paste LinkedIn URL", "approve 70b pull", "confirm H100 teardown")
+        priority: 'urgent' (event-blocking), 'high', 'normal' (default), 'low'
+        details: structured payload rendered as JSON on the task card
+        url: optional link the human should open to complete the task
+    """
+    title = (title or "").strip()
+    if not title:
+        return {"ok": False, "error": "title required"}
+    payload: dict[str, Any] = {
+        "sessionId": session_id or _session(),
+        "title": title,
+        "priority": priority,
+    }
+    if details is not None:
+        payload["details"] = details
+    if url:
+        payload["url"] = url
+    return await _post_ingest("human_task", payload)
+
+
+@mcp.tool()
 async def recent_events(
     limit: int = 30,
     session_id: str | None = None,
