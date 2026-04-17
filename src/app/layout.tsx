@@ -83,7 +83,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen font-sans antialiased lg:pr-[320px]">
+      <body className="min-h-screen font-sans antialiased">
         <header className="border-b border-workshop-muted/20 bg-workshop-surface/60 backdrop-blur">
           <nav className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4 text-sm">
             <Link
