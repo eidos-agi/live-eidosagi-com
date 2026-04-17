@@ -1012,6 +1012,84 @@ export function resolveHumanTask(
   return task;
 }
 
+// ─────────────────────────── models registry ────────────────────────────
+
+export interface ModelRow {
+  name: string;
+  family: string;
+  generation: string | null;
+  architecture: string | null;
+  totalParamsB: number | null;
+  activeParamsB: number | null;
+  sizeGB: number | null;
+  license: string | null;
+  releasedAt: string | null;
+  hardwareTarget: string | null;
+  pulledOnH100: boolean;
+  defaultInHarness: boolean;
+  inRaceRotation: boolean;
+  notes: string | null;
+  updatedAt: string;
+}
+
+interface ModelDbRow {
+  name: string;
+  family: string;
+  generation: string | null;
+  architecture: string | null;
+  total_params_b: number | null;
+  active_params_b: number | null;
+  size_gb: number | null;
+  license: string | null;
+  released_at: string | null;
+  hardware_target: string | null;
+  pulled_on_h100: number;
+  default_in_harness: number;
+  in_race_rotation: number;
+  notes: string | null;
+  updated_at: number;
+}
+
+function rowToModel(r: ModelDbRow): ModelRow {
+  return {
+    name: r.name,
+    family: r.family,
+    generation: r.generation,
+    architecture: r.architecture,
+    totalParamsB: r.total_params_b,
+    activeParamsB: r.active_params_b,
+    sizeGB: r.size_gb,
+    license: r.license,
+    releasedAt: r.released_at,
+    hardwareTarget: r.hardware_target,
+    pulledOnH100: !!r.pulled_on_h100,
+    defaultInHarness: !!r.default_in_harness,
+    inRaceRotation: !!r.in_race_rotation,
+    notes: r.notes,
+    updatedAt: new Date(r.updated_at).toISOString(),
+  };
+}
+
+export function listModels(): ModelRow[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT name, family, generation, architecture,
+              total_params_b, active_params_b, size_gb, license,
+              released_at, hardware_target, pulled_on_h100,
+              default_in_harness, in_race_rotation, notes, updated_at
+         FROM models
+        WHERE deleted_at IS NULL
+        ORDER BY default_in_harness DESC,
+                 pulled_on_h100 DESC,
+                 family ASC,
+                 CAST(generation AS REAL) DESC,
+                 total_params_b DESC`,
+    )
+    .all() as ModelDbRow[];
+  return rows.map(rowToModel);
+}
+
 export function humanTaskCounts(): { open: number; done: number; wontdo: number; blocked: number } {
   const db = getDb();
   const rows = db
