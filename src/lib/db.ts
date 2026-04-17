@@ -158,6 +158,34 @@ function toMillis(v: number | string | Date | undefined): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
+// In-process pub/sub for new events. SSE subscribers in the /api/events/stream
+// route attach listeners here; insertEvent broadcasts every successful commit.
+type EventListener = (ev: ActivityEvent) => void;
+interface EventBusHolder {
+  __eidosLiveEventBus?: Set<EventListener>;
+}
+function eventBus(): Set<EventListener> {
+  const h = globalThis as unknown as EventBusHolder;
+  if (!h.__eidosLiveEventBus) h.__eidosLiveEventBus = new Set();
+  return h.__eidosLiveEventBus;
+}
+export function subscribeEvents(listener: EventListener): () => void {
+  const bus = eventBus();
+  bus.add(listener);
+  return () => {
+    bus.delete(listener);
+  };
+}
+function broadcastEvent(ev: ActivityEvent): void {
+  for (const l of eventBus()) {
+    try {
+      l(ev);
+    } catch {
+      // one bad listener shouldn't kill the others
+    }
+  }
+}
+
 export function insertEvent(
   input: InsertEventInput,
 ): { id: number; event: ActivityEvent } {
@@ -185,7 +213,9 @@ export function insertEvent(
        FROM events WHERE id = ?`,
     )
     .get(id) as EventRow;
-  return { id, event: rowToEvent(row) };
+  const event = rowToEvent(row);
+  broadcastEvent(event);
+  return { id, event };
 }
 
 export interface ListEventsOpts {
