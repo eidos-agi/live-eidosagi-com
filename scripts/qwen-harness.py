@@ -39,9 +39,10 @@ INGEST_TOKEN = os.environ.get("INGEST_TOKEN", "")
 H100_KEY = str(Path.home() / ".thunder" / "keys" / "vx7agf6f")
 H100_PORT = "32448"
 H100_HOST = "62.169.159.125"
-MODEL = "qwen2.5:72b"
+MODEL = os.environ.get("QWEN_MODEL", "qwen3.6:35b-a3b")
 SESSION = "qwen-harness-proof"
 MAX_TURNS = 8
+MAX_TOKENS = int(os.environ.get("QWEN_MAX_TOKENS", "1500"))
 
 
 def ingest(kind: str, payload: dict) -> None:
@@ -112,7 +113,7 @@ def call_qwen(messages: list[dict]) -> dict:
         "messages": messages,
         "tools": TOOLS,
         "stream": False,
-        "max_tokens": 500,
+        "max_tokens": MAX_TOKENS,
     })
     remote = "curl -s -X POST http://localhost:11434/v1/chat/completions -H 'content-type: application/json' --data-binary @-"
     cmd = ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
