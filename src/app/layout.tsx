@@ -121,6 +121,12 @@ export default function RootLayout({
               models
             </Link>
             <Link
+              href="/research/why-local-matters"
+              className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
+            >
+              why local
+            </Link>
+            <Link
               href="/methodology"
               className="font-mono text-xs uppercase tracking-wider text-workshop-muted hover:text-workshop-primary"
             >
