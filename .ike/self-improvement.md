@@ -47,3 +47,19 @@ Fix (trivial): docstring → 3.6, boot summary uses `{MODEL}` variable now so it
 **Fix (trivial, ≤ 3 min):** ship `scripts/audit.sh` that does the parallel probe + structured JSON output. Next BENCHMARK CHECK becomes `bash scripts/audit.sh` — one line, one tool call, less Claude context per audit.
 
 Doing it now on this same `self-improvement-seed` branch per the 22:10Z batching rule.
+
+---
+
+## 2026-04-17T22:45Z — metrics-gap check
+
+**The metric that would have shaped a decision today but I didn't have:** Qwen-vs-Claude token-count split per hour. I wrote an entire `.ike/delegation-plan.md` claiming "Qwen can replace ~60% of Claude's write-work" and opened PR #74 widening Qwen's autonomous tooling — with **zero** actual accounting of how many Claude tokens I'm burning per hour vs how many Qwen is. The plan was vibes.
+
+**Filed:** TASK-0041. The fix has a known shape (harness already gets `usage.prompt_tokens / completion_tokens / total_tokens` from every Ollama call and throws it away — emit it as structured `log_event.details.usage` and the existing SQLite events table can aggregate by hour).
+
+---
+
+## 2026-04-17T22:50Z — hedge correction
+
+User called out: "it's almost impossible that the old models are better than new ones, almost impossible." Right. 40 min ago I filed TASK-0036 (quality eval harness) and then used it as a reason to NOT upgrade the race rotation from qwen2.5 → qwen3.6 — "we haven't measured it on our workload." Epistemic safetyism.
+
+**Rule:** when the prior is strong (same family, one version newer, published benchmarks agree, community consensus visible), **just upgrade.** Save formal measurement for cross-family choices (Qwen vs Llama vs Gemma) and surprising-regression cases. The whole race rotation still running qwen2.5 + llama3.1/3.2 in April 2026 is me hiding behind "we haven't measured it."
