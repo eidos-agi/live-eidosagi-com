@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
+import ActivitySidebar from "@/components/ActivitySidebar";
 import ChatSidebar from "@/components/ChatSidebar";
 import LinksFooter from "@/components/LinksFooter";
 
@@ -83,7 +84,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen font-sans antialiased">
+      <body className="min-h-screen font-sans antialiased lg:pr-[640px]">
         <header className="border-b border-workshop-muted/20 bg-workshop-surface/60 backdrop-blur">
           <nav className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4 text-sm">
             <Link
@@ -141,6 +142,7 @@ export default function RootLayout({
         </header>
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
         <LinksFooter />
+        <ActivitySidebar />
         <ChatSidebar />
       </body>
     </html>
