@@ -1,0 +1,15 @@
+{
+  "id": "b24804ce-d343-4b85-aced-c0df8ee3b913",
+  "version": "0.1.0",
+  "projectName": "Harness brain selection \u2014 Qwen 3.6 35B-A3B vs alternatives",
+  "created": "2026-04-17",
+  "phase": "research",
+  "transitions": [
+    {
+      "phase": "research",
+      "date": "2026-04-17"
+    }
+  ],
+  "question": "Which open-weights model should drive the `scripts/qwen-harness.py` agent loop on the H100 as of 2026-04-17 \u2014 the default that future agent runs invoke when no env override is set?",
+  "context": "Context for any future session: live.eidosagi.com is the public live event where Eidos is migrating itself off Anthropic's hosted harness onto local silicon. ADR-005 closed with Qwen authoring a /research page end-to-end on the H100 via `scripts/qwen-harness.py`. ADR-006 pivoted the default from `qwen2.5:72b` to `qwen3.6:35b-a3b` (MoE, ~3B active per token, released 2026-04-16) the day it dropped. The pivot was made in-chat without going through the research.md forge \u2014 this project retrofits evidence + criteria + scoring so the decision is earnable by any future reader. Candidates to evaluate include qwen3.6:35b-a3b (incumbent), qwen2.5:72b (dense baseline for the MoE-vs-dense story on /research/how-it-works), llama3.3:70b (Meta current), gemma3:27b (Google current), deepseek-v3 (best-in-class reasoning as of early 2026)."
+}
