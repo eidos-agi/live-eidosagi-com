@@ -16,33 +16,23 @@
     }
 }
 
-# ─── Dry-run subdomain (uncomment after DNS A record points to EPYC) ─────
-# epyc.live.eidosagi.com {
-#     reverse_proxy web:3000 {
-#         # SSE-safe: no explicit flush_interval needed — Caddy streams
-#         # everything by default, including SSE event lines.
-#     }
-#     encode gzip
-# }
-
-# ─── Main domain (enable after 48h green on the dry-run subdomain) ───────
-live.eidosagi.com {
+# ─── Dry-run subdomain (ACTIVE — user adds Cloudflare A record to trigger) ─
+# Caddy auto-issues a Let's Encrypt cert on first HTTPS request once DNS
+# resolves epyc.live.eidosagi.com to the EPYC. Use grey-cloud (proxied=off)
+# so Caddy terminates TLS directly — Cloudflare in front would intercept
+# the TLS-ALPN-01 challenge.
+epyc.live.eidosagi.com {
     reverse_proxy web:3000 {
-        # SSE routes stream correctly with Caddy's default pass-through.
-        # If we ever observe event-feed lag on the live site, check here first.
+        # SSE-safe: Caddy's default reverse_proxy streams without buffering.
+        # Do not add flush_interval — unnecessary and changes behavior.
     }
     encode gzip
-
-    # Security headers for a public site.
     header {
-        # Browser security.
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "SAMEORIGIN"
         Referrer-Policy "strict-origin-when-cross-origin"
-        # Next.js handles CSP per-route; no global CSP here.
     }
-
     log {
         output file /config/access.log {
             roll_size 100mb
@@ -50,3 +40,17 @@ live.eidosagi.com {
         }
     }
 }
+
+# ─── Main domain (COMMENTED — uncomment at cutover after 48h green) ──────
+# live.eidosagi.com {
+#     reverse_proxy web:3000 {
+#         # SSE routes stream correctly with Caddy's default pass-through.
+#     }
+#     encode gzip
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#         X-Content-Type-Options "nosniff"
+#         X-Frame-Options "SAMEORIGIN"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#     }
+# }
