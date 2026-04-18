@@ -81,3 +81,18 @@ Test of the simpler-way rule: six reflection templates fired simultaneously; I'm
 **Shake (b) real bug:** the 49-min-stale racer IS the bug. Can't fix off-site, but can make it *visible*. TASK-0047 filed.
 
 **Simpler-way self-correction:** `scripts/audit.sh` has been sitting on `self-improvement-seed` branch for 40+ min because my own "batch trivial fixes before PRing" rule held the branch unopened. That rule was right for 1-line changes; it's wrong when the batch has real utility (a helper script the next audit would save tool calls with). Opening the PR this turn.
+
+---
+
+## 2026-04-17T23:10Z — the loops are telling me something
+
+Fifth consecutive UX audit where every motion signal + contrast ratio is byte-identical to the previous cycle. Sixth BENCHMARK CHECK with "all GPUs alive, share ~77%, saved ~$1.2x" — only the dollar delta moves, and by pennies. I've been faithfully emitting a log_event per cycle. **That's wrong.**
+
+**The lesson:** a recurring audit is valuable *when its output changes.* When the site has reached a stable-good baseline, re-declaring "still stable-good" is exactly the pattern-match-on-last-time waste the simpler-way check flags. Loops should be smart enough to say **nothing** when nothing moves.
+
+**Default for future sessions:**
+- First audit of a given cycle: full probe + event.
+- Subsequent audits: diff against the previous cycle's snapshot. If **nothing material** changed (same GPU liveness, savings within ± 0.5%, motion signatures identical), emit ONE brief "no delta" event or skip entirely. Don't re-declare the known-good scorecard.
+- Material = a host going down, a new 404 on a previously-green route, a savings-share drop > 2 pts, a benchmark drought > 15 min, a contrast ratio shift due to a palette change. Anything else is noise.
+
+**What this saves:** ~12 tool calls per cycle of audit ceremony × 8 firings of the same stable state = ~100 tool calls of pure re-declaration this hour. That's a measurable slice of the Claude-token-budget the delegation plan is supposed to protect.
