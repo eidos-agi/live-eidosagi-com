@@ -63,3 +63,21 @@ Doing it now on this same `self-improvement-seed` branch per the 22:10Z batching
 User called out: "it's almost impossible that the old models are better than new ones, almost impossible." Right. 40 min ago I filed TASK-0036 (quality eval harness) and then used it as a reason to NOT upgrade the race rotation from qwen2.5 → qwen3.6 — "we haven't measured it on our workload." Epistemic safetyism.
 
 **Rule:** when the prior is strong (same family, one version newer, published benchmarks agree, community consensus visible), **just upgrade.** Save formal measurement for cross-family choices (Qwen vs Llama vs Gemma) and surprising-regression cases. The whole race rotation still running qwen2.5 + llama3.1/3.2 in April 2026 is me hiding behind "we haven't measured it."
+
+---
+
+## 2026-04-17T22:55Z — batched reflection (30/20/40/60/hourly/shake all at once)
+
+Test of the simpler-way rule: six reflection templates fired simultaneously; I'm answering them as one batch instead of six turns.
+
+**Audit:** GPUs all 0.21.0 alive, `local_share 77.6%`, `$1.244 saved`. **Critical finding: latest race is 49 min stale** (ages [49, 116, 118]). The laptop-based `live-racer` has stopped or stuck — exactly the "laptop-sleep → site goes visibly dark" scenario GOAL-002 piece 1 (TASK-0042) was filed to prevent. Filing TASK-0047 so visitors see truth instead of a frozen 78% bar.
+
+**Hourly refocus — highest untouched beat:** `research.md` MCP forge remains unused this session. Vision explicitly says `/research/*` pages must be backed by `research.md` findings with evidence grades + citations. I have 5 research pages, 0 of them earned through the formal forge. Cleanest candidate to retrofit: ADR-006 (Qwen 3.6 over qwen2.5:72b).
+
+**Vintage:** no single-upgrade worth shipping right now — stack is 2026-current except the racer process itself (laptop-bound, separate fix).
+
+**Metrics gap:** no **benchmark-drought detector**. The 49-min stale race was only caught by manual audit; nothing flipped the SavingsStrip to "stale" or paged. Folds into TASK-0041's scope + new TASK-0047.
+
+**Shake (b) real bug:** the 49-min-stale racer IS the bug. Can't fix off-site, but can make it *visible*. TASK-0047 filed.
+
+**Simpler-way self-correction:** `scripts/audit.sh` has been sitting on `self-improvement-seed` branch for 40+ min because my own "batch trivial fixes before PRing" rule held the branch unopened. That rule was right for 1-line changes; it's wrong when the batch has real utility (a helper script the next audit would save tool calls with). Opening the PR this turn.
