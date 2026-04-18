@@ -1,0 +1,52 @@
+# live.eidosagi.com — EPYC bare-metal deploy topology (TASK-0050).
+#
+# Usage on the EPYC host (epyc-56223.eidosagi.com):
+#   docker compose pull && docker compose up -d
+#
+# Caddy terminates TLS on :443 (auto-LE), reverse-proxies to the Next.js
+# container on an internal network. SQLite persists to /srv/live-eidosagi/data
+# on the host (ferried from Railway's volume on initial cutover).
+#
+# First-run env vars to set in /srv/live-eidosagi/.env on the host:
+#   INGEST_TOKEN=<copied from Railway>
+#   CLAUDE_EVENT_COST_USD=0.004
+#   NEXT_PUBLIC_SITE_URL=https://live.eidosagi.com
+#
+# Cutover checklist lives in .ike/tasks/TASK-0050-*.md.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: live-eidosagi-com:latest
+    restart: unless-stopped
+    expose:
+      - "3000"
+    env_file:
+      - /srv/live-eidosagi/.env
+    environment:
+      DATABASE_PATH: /data/eidos-live.sqlite
+    volumes:
+      - /srv/live-eidosagi/data:/data
+    networks:
+      - edge
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/live-eidosagi/caddy-data:/data
+      - /srv/live-eidosagi/caddy-config:/config
+    depends_on:
+      - web
+    networks:
+      - edge
+
+networks:
+  edge:
+    driver: bridge
