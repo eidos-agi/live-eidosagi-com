@@ -60,6 +60,9 @@ interface SavingsPayload {
   usd_saved_estimate: number;
   hosted_cost_incurred_usd: number;
   claude_event_cost_usd: number;
+  /** Epoch ms of the most recent actor='benchmark' event, or null. Drives
+   *  the "stale · last race Nm ago" badge when races stop landing. */
+  last_benchmark_ts: number | null;
   updated_at: string;
 }
 
@@ -78,6 +81,7 @@ function emptyPayload(claudeCost: number): SavingsPayload {
     usd_saved_estimate: 0,
     hosted_cost_incurred_usd: 0,
     claude_event_cost_usd: claudeCost,
+    last_benchmark_ts: null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -93,6 +97,7 @@ export async function GET(): Promise<NextResponse> {
   const claudeCost = readClaudeCost();
 
   let byActor: Record<string, number> = {};
+  let lastBenchmarkTs: number | null = null;
   try {
     const db = getDb();
     const sinceMs = Date.now() - WINDOW_HOURS * 60 * 60 * 1000;
@@ -108,6 +113,17 @@ export async function GET(): Promise<NextResponse> {
     for (const row of rows) {
       byActor[row.actor] = Number(row.c);
     }
+    // Last-benchmark-ts drives the stale-badge. Not bounded by WINDOW_HOURS —
+    // we want "last race 2h ago" to read as very stale, not "no races" (which
+    // would look the same as cold-start).
+    const lastRow = db
+      .prepare(
+        `SELECT ts FROM events
+          WHERE deleted_at IS NULL AND actor = 'benchmark'
+          ORDER BY ts DESC LIMIT 1`,
+      )
+      .get() as { ts: number } | undefined;
+    if (lastRow) lastBenchmarkTs = Number(lastRow.ts);
   } catch {
     // DB unavailable — graceful all-zeros payload (200) so the widget
     // never becomes a visible error state on the public site.
@@ -147,6 +163,7 @@ export async function GET(): Promise<NextResponse> {
     usd_saved_estimate: round4(usdSaved),
     hosted_cost_incurred_usd: round4(hosted * claudeCost),
     claude_event_cost_usd: claudeCost,
+    last_benchmark_ts: lastBenchmarkTs,
     updated_at: new Date().toISOString(),
   };
 
