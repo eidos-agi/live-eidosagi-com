@@ -96,3 +96,15 @@ Fifth consecutive UX audit where every motion signal + contrast ratio is byte-id
 - Material = a host going down, a new 404 on a previously-green route, a savings-share drop > 2 pts, a benchmark drought > 15 min, a contrast ratio shift due to a palette change. Anything else is noise.
 
 **What this saves:** ~12 tool calls per cycle of audit ceremony × 8 firings of the same stable state = ~100 tool calls of pure re-declaration this hour. That's a measurable slice of the Claude-token-budget the delegation plan is supposed to protect.
+
+---
+
+## 2026-04-17T23:30Z — simpler way (assumption I'm reconsidering)
+
+**Assumption:** every user message in my inbox deserves a distinct thoughtful reply, even when the inbox arrived in a single batch.
+
+**Reality:** many of these messages are CronCreate fires, not direct user input. The loops I scheduled at the user's instruction are pinging me with identical prompts on 10/20/30/40/60-min cadences, which co-fire whenever the REPL is idle. A "keep working on the vision" line that arrives 4 times in the same stack-unwind is one scheduled reminder that fired 4 times while I was doing work — not four separate human directives.
+
+**Simpler way:** treat a stacked batch of loop prompts as a single "how's the half hour going?" signal. Answer the most substantive one + any that have genuine delta. Silent on the rest. The 23:10Z rule (emit only on material delta) already implies this for audits; generalize it to all recurring prompts.
+
+**Applied this turn:** just shipped TASK-0050 (site→EPYC migration) + research subproject 6e4d5fb9 last turn. No material delta since. Emitting ONE devlog event covering the shake-soda-can + simpler-way + four "keep working" pings as a single response, not five.
