@@ -2,6 +2,7 @@
 
 Real-time LLM benchmark dashboard. Three Thunder Compute GPU lanes (A6000 / A100 / H100) race head-to-head while events stream in over HTTP.
 
+**Scope:** live race / streaming telemetry. **Not** API model adoption studies or durable go/no-go records — those live under [research-reports/studies](https://github.com/eidos-agi/research-reports/tree/main/studies) and [emf](https://github.com/eidos-agi/emf). Offline metal eval: [eidos-server-llm-testing-01](https://github.com/eidos-agi/eidos-server-llm-testing-01). Full map: [canonical-homes.md](https://github.com/eidos-agi/research-reports/blob/main/docs/canonical-homes.md).
 - **Stack**: Next.js 15 (app router) · TypeScript · Tailwind · pnpm
 - **Charts**: [uPlot](https://github.com/leeoniya/uPlot) — canvas-based, handles thousands of streaming points at 60fps with no virtual-DOM churn. visx was considered but rejected for this use case: React-tree charts re-render on every event, which is death for a live ticker. uPlot's `setData` imperative update fits the SSE model cleanly.
 - **Storage**: flat JSONL under `data/runs/<runId>/` — no DB, intentional. Each run owns a `run.json`, `events.jsonl`, `scores.jsonl`.
