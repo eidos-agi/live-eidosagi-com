@@ -3,5 +3,5 @@
   "version": "0.1.0",
   "project": "live-eidosagi-com",
   "created": "2026-04-17",
-  "ike_path": ".ike"
+  "docket_path": ".docket"
 }

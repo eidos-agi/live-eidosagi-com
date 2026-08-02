@@ -1,0 +1,56 @@
+# Caddyfile — reverse proxy + auto-TLS for live.eidosagi.com on the EPYC.
+#
+# For a 48h dry-run subdomain before the main-domain cutover, also define
+# epyc.live.eidosagi.com (commented out below until the Cloudflare record
+# points there).
+#
+# SSE routes (/api/events/stream, /api/chat/stream) need un-buffered
+# proxying. Caddy's default reverse_proxy does NOT buffer — SSE works
+# out of the box. Explicitly noted below so future edits don't break it.
+
+{
+    email daniel@eidosagi.com
+    # Set to 'debug' during cutover, back to 'info' after.
+    log {
+        level info
+    }
+}
+
+# ─── Dry-run subdomain (ACTIVE — user adds Cloudflare A record to trigger) ─
+# Caddy auto-issues a Let's Encrypt cert on first HTTPS request once DNS
+# resolves epyc.live.eidosagi.com to the EPYC. Use grey-cloud (proxied=off)
+# so Caddy terminates TLS directly — Cloudflare in front would intercept
+# the TLS-ALPN-01 challenge.
+epyc.live.eidosagi.com {
+    reverse_proxy web:3000 {
+        # SSE-safe: Caddy's default reverse_proxy streams without buffering.
+        # Do not add flush_interval — unnecessary and changes behavior.
+    }
+    encode gzip
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+    log {
+        output file /config/access.log {
+            roll_size 100mb
+            roll_keep 5
+        }
+    }
+}
+
+# ─── Main domain (COMMENTED — uncomment at cutover after 48h green) ──────
+# live.eidosagi.com {
+#     reverse_proxy web:3000 {
+#         # SSE routes stream correctly with Caddy's default pass-through.
+#     }
+#     encode gzip
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#         X-Content-Type-Options "nosniff"
+#         X-Frame-Options "SAMEORIGIN"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#     }
+# }
