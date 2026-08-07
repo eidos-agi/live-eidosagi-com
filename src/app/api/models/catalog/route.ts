@@ -10,6 +10,7 @@ export async function GET(): Promise<NextResponse> {
   const models = listModels();
   return NextResponse.json(
     { models, count: models.length },
-    { headers: { "Cache-Control": "no-store" } },
+    // Registry updates on ollama-pull cadence (hours). 5 min CDN cache is safe.
+    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=900" } },
   );
 }

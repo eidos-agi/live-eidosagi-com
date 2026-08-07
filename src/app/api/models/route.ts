@@ -10,11 +10,13 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     const rows = await buildLeaderboard();
+    // Benchmarks land every ~90 s; 60 s CDN cache is a wash on freshness
+    // but halves origin cost for repeat visitors on /models.
     return NextResponse.json(
       { rows, count: rows.length },
       {
         headers: {
-          "cache-control": "no-store",
+          "cache-control": "public, s-maxage=60, stale-while-revalidate=120",
         },
       },
     );

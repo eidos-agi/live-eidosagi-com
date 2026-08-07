@@ -1,0 +1,15 @@
+{
+  "id": "a3658cff-8218-4231-a9cf-72936ce86acc",
+  "version": "0.1.0",
+  "projectName": "live-eidosagi-com",
+  "created": "2026-04-17",
+  "phase": "research",
+  "transitions": [
+    {
+      "phase": "research",
+      "date": "2026-04-17"
+    }
+  ],
+  "question": "What makes a live public AI-agent dashboard worth watching, and what's the minimum architecture to sustain it?",
+  "context": "Building live.eidosagi.com \u2014 a Friday 2026-04-17 live event framed as \"Eidos moves itself to 90%-cheaper silicon without losing intelligence.\" Three GPU lanes (A6000/A100/H100), SSE activity rail, always-open chat rail, SavingsStrip mission counter. SQLite on Railway volume, in-tree eidos-live MCP. Audience watching via LinkedIn: https://www.linkedin.com/feed/update/urn:li:activity:7450954697034608641/"
+}

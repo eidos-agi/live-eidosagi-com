@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { loadUpNext, type UpNextTask } from "@/lib/upnext";
 
-export const dynamic = "force-dynamic";
+// ISR — reads .ike/tasks filesystem at build+revalidate time.
+// 2 min cache covers task churn without hammering disk on every hit.
+export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: "Up Next",

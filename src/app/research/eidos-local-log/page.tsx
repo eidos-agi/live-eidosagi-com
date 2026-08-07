@@ -1,5 +1,8 @@
 export const metadata = { title: "Eidos · Local Log · live.eidosagi.com" };
 
+// ISR — Qwen-authored prose is static; refresh every 5 min.
+export const revalidate = 300;
+
 export default function Page() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12 text-workshop-text">

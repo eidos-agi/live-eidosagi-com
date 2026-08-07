@@ -15,7 +15,9 @@
 // varies with prompt size, but the env-driven mean is kept low
 // (0.004 default) so the published number only ever rounds DOWN.
 //
-// Cache-Control: no-store. No DB -> all-zeros payload, still 200.
+// Cache-Control: public, s-maxage=10, stale-while-revalidate=30.
+// Savings math lags a bit anyway (15 s client refresh), so a 10 s CDN
+// cache cuts origin load without anyone noticing staleness.
 //
 // Refs: TASK-0010, TASK-0012, visionlog GOAL-001, ADR-003.
 
@@ -112,7 +114,7 @@ export async function GET(): Promise<NextResponse> {
     // DB unavailable — graceful all-zeros payload (200) so the widget
     // never becomes a visible error state on the public site.
     return NextResponse.json(emptyPayload(claudeCost), {
-      headers: { "Cache-Control": "no-store" },
+      headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" },
     });
   }
 

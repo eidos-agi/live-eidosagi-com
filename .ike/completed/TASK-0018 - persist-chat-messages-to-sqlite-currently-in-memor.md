@@ -1,9 +1,10 @@
 ---
 id: TASK-0018
 title: Persist chat messages to SQLite (currently in-memory — lost on every deploy)
-status: To Do
+status: Done
 created: '2026-04-17'
 priority: High
+updated: '2026-04-17'
 ---
 ChatSidebar posts via /api/chat which (from earlier audit) uses an in-memory fallback because better-sqlite3 failed to load at build time. Messages disappear on every Railway deploy — viewers on the live-event page lose their conversation minutes after it starts.
 

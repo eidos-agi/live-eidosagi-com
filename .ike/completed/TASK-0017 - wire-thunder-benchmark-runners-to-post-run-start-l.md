@@ -1,9 +1,10 @@
 ---
 id: TASK-0017
 title: Wire Thunder benchmark runners to POST run_start / log_progress / log_score
-status: To Do
+status: Done
 created: '2026-04-17'
 priority: High
+updated: '2026-04-17'
 ---
 Audit at 18:03 showed `/api/raw/runs` returns an empty list — the original `run_full_suite.py` benchmark orchestrator (running on A6000/A100/H100 in `/home/ubuntu/llm-testing/`) never POSTs anything to /api/ingest. The RaceBoard therefore can't show a live run; it falls back to the default lane config.
 
