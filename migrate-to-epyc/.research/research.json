@@ -1,0 +1,15 @@
+{
+  "id": "6e4d5fb9-6ff8-4bdf-ae44-2726be1abb04",
+  "version": "0.1.0",
+  "projectName": "migrate-to-epyc",
+  "created": "2026-04-17",
+  "phase": "research",
+  "transitions": [
+    {
+      "phase": "research",
+      "date": "2026-04-17"
+    }
+  ],
+  "question": "Should live.eidosagi.com (Next.js app + SQLite + SSE routes) move off Railway onto the HOSTKEY EPYC bare-metal (162.120.18.7, 384 GB RAM, $299.64/mo) that Eidos already owns?",
+  "context": "This research earns the migration decision that GOAL-002 piece 1 (TASK-0042) assumes. Currently the site runs on Railway's 'web' service with the SQLite DB on a mounted volume at /data; deploy is driven by `.github/workflows/deploy.yml` via `railway up`. The EPYC is paid, under-utilized, and already the canonical home for eidos-mail and other continuous services. Moving the site there is the keystone step for the 'Eidos continuous' long-term goal \u2014 it takes live.eidosagi.com off third-party orchestration and puts it on hardware we own. Candidates to evaluate: (A) stay on Railway, (B) full migration to EPYC, (C) hybrid (static cache on Cloudflare + dynamic on EPYC). Non-negotiables: SSE routes must stay live; custom domain live.eidosagi.com must continue resolving; the SQLite data in /data must migrate without loss; GitHub Actions deploy workflow needs to target the new host."
+}

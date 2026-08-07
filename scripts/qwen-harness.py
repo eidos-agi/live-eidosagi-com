@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal agent harness — Qwen 2.5 72B on the H100 drives a tool-using loop.
+"""Minimal agent harness — Qwen 3.6 35B-A3B on the H100 drives a tool-using loop.
 
 This is ADR-005 step 3: prove an open-weights model can run an agent loop
 end-to-end without Anthropic in the critical path.
@@ -277,7 +277,7 @@ def run(task: str) -> None:
         sys.exit(2)
 
     log_event(
-        f"qwen-harness boot — Qwen 2.5 72B on H100 assigned task: {task[:80]}",
+        f"qwen-harness boot — {MODEL} on H100 assigned task: {task[:80]}",
         kind="milestone",
         icon="rocket",
         details={"model": MODEL, "session": SESSION, "adr": "ADR-005", "step": 3},
@@ -342,7 +342,7 @@ def run(task: str) -> None:
 
 if __name__ == "__main__":
     task = " ".join(sys.argv[1:]) or (
-        "Introduce yourself on the live feed as Qwen 2.5 72B running on the H100 — "
+        "Introduce yourself on the live feed as Qwen 3.6 35B-A3B running on the H100 — "
         "call log_event with a one-line welcome. Then fetch https://live.eidosagi.com/api/savings "
         "and log one observation about the current local_share. Then call done."
     )
