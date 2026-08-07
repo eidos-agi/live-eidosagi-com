@@ -45,6 +45,43 @@ function fmtUsd(n: number | null): string {
   return `$${n.toFixed(3)}`;
 }
 
+// Tiny pill telling a visitor whether a model is commercial-safe. Intentionally
+// short — the nuance lives in the tooltip (model.notesCommercial) and the
+// per-model detail page's license field.
+function commercialPill(
+  commercialUse: "yes" | "yes-with-restrictions" | "no" | "research-only" | null,
+  tooltip: string | null,
+): { label: string; cls: string; tip: string } | null {
+  if (!commercialUse) return null;
+  const tip = tooltip ?? "commercial-use status for this model";
+  switch (commercialUse) {
+    case "yes":
+      return {
+        label: "ship it",
+        cls: "border-workshop-command/60 text-workshop-command bg-workshop-command/5",
+        tip,
+      };
+    case "yes-with-restrictions":
+      return {
+        label: "caveats",
+        cls: "border-workshop-primary/60 text-workshop-primary bg-workshop-primary/5",
+        tip,
+      };
+    case "research-only":
+      return {
+        label: "research-only",
+        cls: "border-workshop-danger/50 text-workshop-danger bg-workshop-danger/5",
+        tip,
+      };
+    case "no":
+      return {
+        label: "non-commercial",
+        cls: "border-workshop-danger/60 text-workshop-danger bg-workshop-danger/10",
+        tip,
+      };
+  }
+}
+
 function familyTone(family: string): { chip: string; accent: string } {
   switch (family) {
     case "qwen":
@@ -188,6 +225,20 @@ export default async function ModelsPage() {
                           race
                         </span>
                       )}
+                      {(() => {
+                        const pill = commercialPill(
+                          model.commercialUse,
+                          model.notesCommercial,
+                        );
+                        return pill ? (
+                          <span
+                            title={pill.tip}
+                            className={`inline-block rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${pill.cls}`}
+                          >
+                            {pill.label}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </header>

@@ -1014,6 +1014,13 @@ export function resolveHumanTask(
 
 // ─────────────────────────── models registry ────────────────────────────
 
+export type CommercialUse =
+  | "yes"
+  | "yes-with-restrictions"
+  | "no"
+  | "research-only"
+  | null;
+
 export interface ModelRow {
   name: string;
   family: string;
@@ -1029,6 +1036,8 @@ export interface ModelRow {
   defaultInHarness: boolean;
   inRaceRotation: boolean;
   notes: string | null;
+  commercialUse: CommercialUse;
+  notesCommercial: string | null;
   updatedAt: string;
 }
 
@@ -1047,6 +1056,8 @@ interface ModelDbRow {
   default_in_harness: number;
   in_race_rotation: number;
   notes: string | null;
+  commercial_use: string | null;
+  notes_commercial: string | null;
   updated_at: number;
 }
 
@@ -1066,6 +1077,8 @@ function rowToModel(r: ModelDbRow): ModelRow {
     defaultInHarness: !!r.default_in_harness,
     inRaceRotation: !!r.in_race_rotation,
     notes: r.notes,
+    commercialUse: (r.commercial_use as CommercialUse) ?? null,
+    notesCommercial: r.notes_commercial,
     updatedAt: new Date(r.updated_at).toISOString(),
   };
 }
@@ -1077,7 +1090,8 @@ export function listModels(): ModelRow[] {
       `SELECT name, family, generation, architecture,
               total_params_b, active_params_b, size_gb, license,
               released_at, hardware_target, pulled_on_h100,
-              default_in_harness, in_race_rotation, notes, updated_at
+              default_in_harness, in_race_rotation, notes,
+              commercial_use, notes_commercial, updated_at
          FROM models
         WHERE deleted_at IS NULL
         ORDER BY default_in_harness DESC,
