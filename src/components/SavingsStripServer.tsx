@@ -17,6 +17,7 @@ interface Seed {
   hosted_event_count: number;
   usd_saved_estimate: number;
   hosted_cost_incurred_usd: number;
+  last_benchmark_ts: number | null;
 }
 
 function readClaudeCost(): number {
@@ -51,6 +52,17 @@ function computeSeed(): Seed | null {
     const share = denom > 0 ? local / denom : 0;
     const cost = readClaudeCost();
     const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
+
+    // Most recent benchmark event — powers the "stale · last race Nm ago"
+    // badge when live-racer has stopped landing data.
+    const lastRow = db
+      .prepare(
+        `SELECT ts FROM events
+          WHERE deleted_at IS NULL AND actor = 'benchmark'
+          ORDER BY ts DESC LIMIT 1`,
+      )
+      .get() as { ts: number } | undefined;
+
     return {
       local_share: share,
       total_events: total,
@@ -58,6 +70,7 @@ function computeSeed(): Seed | null {
       hosted_event_count: hosted,
       usd_saved_estimate: round4(local * cost),
       hosted_cost_incurred_usd: round4(hosted * cost),
+      last_benchmark_ts: lastRow ? Number(lastRow.ts) : null,
     };
   } catch {
     return null;

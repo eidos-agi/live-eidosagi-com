@@ -17,6 +17,8 @@ import { useEffect, useRef, useState } from "react";
 
 const REFRESH_MS = 15_000;
 const GOAL_PCT = 90; // mission: 90% local narration
+const STALE_BENCHMARK_WARN_SEC = 15 * 60;  // 15 min → "stale" badge
+const STALE_BENCHMARK_DIM_SEC  = 30 * 60;  // 30 min → fade the fill color
 
 interface SavingsPayload {
   window_hours: number;
@@ -28,7 +30,16 @@ interface SavingsPayload {
   usd_saved_estimate: number;
   hosted_cost_incurred_usd?: number;
   claude_event_cost_usd: number;
+  last_benchmark_ts: number | null;
   updated_at: string;
+}
+
+function formatRelMin(sec: number): string {
+  const m = Math.floor(sec / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 function formatUsd(n: number): string {
@@ -79,6 +90,7 @@ interface Props {
     hosted_event_count: number;
     usd_saved_estimate: number;
     hosted_cost_incurred_usd: number;
+    last_benchmark_ts: number | null;
   };
 }
 
@@ -94,12 +106,21 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
         usd_saved_estimate: initialSeed.usd_saved_estimate,
         hosted_cost_incurred_usd: initialSeed.hosted_cost_incurred_usd,
         claude_event_cost_usd: 0.004,
+        last_benchmark_ts: initialSeed.last_benchmark_ts,
         updated_at: new Date().toISOString(),
       }
     : null;
   const [data, setData] = useState<SavingsPayload | null>(seeded);
   const [pulse, setPulse] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const lastSigRef = useRef<string>("");
+
+  // Re-render once a second so the relative "Nm ago" stale badge ticks forward
+  // without needing a /api/savings fetch. Cheap, no network.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +163,16 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
   const local = data?.local_event_count ?? 0;
   const hosted = data?.hosted_event_count ?? 0;
   const empty = !data || data.total_events === 0;
+
+  // Stale-benchmark detection — flips the bar from "live" to "stale" when
+  // the race process has stopped landing events. A visitor arriving during a
+  // drought would otherwise see a frozen 78% bar that looks alive.
+  const lastBenchmarkTs = data?.last_benchmark_ts ?? null;
+  const staleSec = lastBenchmarkTs
+    ? Math.max(0, Math.floor((now - lastBenchmarkTs) / 1000))
+    : Number.POSITIVE_INFINITY;
+  const isStaleWarn = staleSec >= STALE_BENCHMARK_WARN_SEC;
+  const isStaleDim  = staleSec >= STALE_BENCHMARK_DIM_SEC;
 
   // Fill width — animate via CSS transition on style.width.
   const fillWidth = `${Math.min(100, pct)}%`;
@@ -202,6 +233,17 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
             <span className="hidden text-workshop-muted sm:inline" aria-hidden>
               ·
             </span>
+            {isStaleWarn && lastBenchmarkTs !== null && (
+              <>
+                <span className="text-workshop-muted" aria-hidden>·</span>
+                <span
+                  className="tnum text-workshop-danger"
+                  title={`No benchmark events have landed for ${Math.floor(staleSec / 60)} min. The race process may be stopped.`}
+                >
+                  stale · last race {formatRelMin(staleSec)}
+                </span>
+              </>
+            )}
             <span className="hidden tnum text-workshop-muted sm:inline">
               {local} local / {hosted} hosted
             </span>
@@ -219,13 +261,19 @@ export default function SavingsStrip({ initialSeed }: Props = {}) {
       {/* Bar row — pure graphic, no overlaid text. Thin and tasteful. */}
       <div className="relative h-[8px] overflow-hidden bg-[var(--color-bg)]/50">
         <div
-          className={`absolute inset-y-0 left-0 overflow-hidden transition-[width,background-color] duration-700 ease-out ${fillColor(share)}`}
+          className={`absolute inset-y-0 left-0 overflow-hidden transition-[width,background-color,opacity,filter] duration-700 ease-out ${fillColor(share)} ${
+            isStaleDim ? "opacity-40 [filter:saturate(0.3)]" : ""
+          }`}
           style={{ width: fillWidth }}
         >
-          {/* Shimmer — moving highlight band signals 'live data' */}
+          {/* Shimmer — moving highlight band signals 'live data'. Pause it
+              when the race process has gone stale so the bar visibly stops
+              faking motion. */}
           <div
             aria-hidden
-            className="savings-shimmer absolute inset-y-0 w-1/3"
+            className={`savings-shimmer absolute inset-y-0 w-1/3 ${
+              isStaleWarn ? "[animation:none] opacity-0" : ""
+            }`}
           />
         </div>
         {/* Goal tick at 90% — full-height vertical line on the bar */}
