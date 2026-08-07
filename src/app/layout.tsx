@@ -3,7 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import ActivitySidebar from "@/components/ActivitySidebar";
 import AutoRefresh from "@/components/AutoRefresh";
-import BenchmarkPulse from "@/components/BenchmarkPulse";
+import BenchmarkPulseServer from "@/components/BenchmarkPulseServer";
 import ChatSidebar from "@/components/ChatSidebar";
 import CommentatorServer from "@/components/CommentatorServer";
 import LaunchBanner from "@/components/LaunchBanner";
@@ -159,7 +159,7 @@ export default function RootLayout({
         </header>
         <LaunchBanner />
         <SavingsStripServer />
-        <BenchmarkPulse />
+        <BenchmarkPulseServer />
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
         <CommentatorServer />
         <LinksFooter />

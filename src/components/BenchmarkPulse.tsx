@@ -71,11 +71,19 @@ function gpuTone(gpu: string | null): string {
   }
 }
 
-export default function BenchmarkPulse() {
-  const [ev, setEv] = useState<ActivityEvent | null>(null);
+interface Props {
+  /** SSR-seeded latest benchmark event — kills the "waiting for signal"
+   * flash on first paint. Client still refreshes from /api/events. */
+  initial?: ActivityEvent | null;
+}
+
+export default function BenchmarkPulse({ initial = null }: Props = {}) {
+  const [ev, setEv] = useState<ActivityEvent | null>(initial);
   const [flash, setFlash] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const lastIdRef = useRef<number | null>(null);
+  // Seed lastIdRef with the initial event's id so the first client fetch
+  // that returns the same event doesn't spurious-flash.
+  const lastIdRef = useRef<number | null>(initial?.id ?? null);
 
   // Fetch + set-up pulse on new id
   useEffect(() => {
